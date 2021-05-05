@@ -22,40 +22,42 @@ module.exports = {
         config.samples = config.samples || 512.0;
         config.gradient_step = config.gradient_step || 0.005;
 
+        var number = config.volume.length;
         var geometry = new THREE.BoxBufferGeometry(1, 1, 1),
             modelMatrix = new THREE.Matrix4(),
             translation = new THREE.Vector3(),
             rotation = new THREE.Quaternion(),
             scale = new THREE.Vector3(),
-            colorMap = (config.color_map && config.color_map.data) || null,
-            opacityFunction = (config.opacity_function && config.opacity_function.data) || null,
+            colorMap = config.color_map,
+            opacityFunction = config.opacity_function,
             colorRange = config.color_range,
             samples = config.samples,
             object,
-            texture,
+            texture = [],
+            colormap = [],
             jitterTexture;
-
-        if (opacityFunction === null) {
-            opacityFunction = [colorMap[0], 0.0, colorMap[colorMap.length - 4], 1.0];
-        }
 
         modelMatrix.set.apply(modelMatrix, config.model_matrix.data);
         modelMatrix.decompose(translation, rotation, scale);
 
-        texture = new THREE.DataTexture3D(
-            config.volume.data,
-            config.volume.shape[2],
-            config.volume.shape[1],
-            config.volume.shape[0]);
-
-        texture.format = THREE.RedFormat;
-        texture.type = typedArrayToThree(config.volume.data.constructor);
-
-        texture.generateMipmaps = false;
-        texture.minFilter = THREE.LinearFilter;
-        texture.magFilter = THREE.LinearFilter;
-        texture.wrapS = texture.wrapT = THREE.ClampToEdgeWrapping;
-        texture.needsUpdate = true;
+        for( var i = 0; i < number; i++ ) {
+            var texture_ = new THREE.DataTexture3D(
+                config.volume[i].data,
+                config.volume[i].shape[2],
+                config.volume[i].shape[1],
+                config.volume[i].shape[0]);
+            
+            texture_.format = THREE.RedFormat;
+            texture_.type = typedArrayToThree(config.volume[i].data.constructor);
+            
+            texture_.generateMipmaps = false;
+            texture_.minFilter = THREE.LinearFilter;
+            texture_.magFilter = THREE.LinearFilter;
+            texture_.wrapS = texture_.wrapT = THREE.ClampToEdgeWrapping;
+            texture_.needsUpdate = true;
+            
+            texture.push(texture_);
+        }
 
         jitterTexture = new THREE.DataTexture(
             new Uint8Array(_.range(64 * 64).map(function () {
@@ -68,22 +70,26 @@ module.exports = {
         jitterTexture.generateMipmaps = false;
         jitterTexture.needsUpdate = true;
 
-        var canvas = colorMapHelper.createCanvasGradient(colorMap, 1024, opacityFunction);
-        var colormap = new THREE.CanvasTexture(canvas, THREE.UVMapping, THREE.ClampToEdgeWrapping,
-            THREE.ClampToEdgeWrapping, THREE.NearestFilter, THREE.NearestFilter);
-        colormap.needsUpdate = true;
-
+        for( var i = 0; i < number; i++ ) {
+            var canvas = colorMapHelper.createCanvasGradient(colorMap[i].data, 1024, opacityFunction[i].data);
+            var colormap_ = new THREE.CanvasTexture(canvas, THREE.UVMapping, THREE.ClampToEdgeWrapping,
+                THREE.ClampToEdgeWrapping, THREE.NearestFilter, THREE.NearestFilter);
+            colormap_.needsUpdate = true;
+            colormap.push(colormap_);
+        }
+        
         var uniforms = {
-            volumeMapSize: {value: new THREE.Vector3(config.volume.shape[2], config.volume.shape[1], config.volume.shape[0])},
-            low: {value: colorRange[0]},
-            high: {value: colorRange[1]},
+            //volumeMapSize: {value: new THREE.Vector3(config.volume[0].shape[2], config.volume[0].shape[1], config.volume[0].shape[0])},
+            number: {value: number},
+            low0: {value: colorRange[0][0]},
+            high0: {value: colorRange[0][1]},
             gradient_step: {value: config.gradient_step},
             samples: {value: samples},
             translation: {value: translation},
             rotation: {value: rotation},
             scale: {value: scale},
-            volumeTexture: {type: 't', value: texture},
-            colormap: {type: 't', value: colormap},
+            volumeTexture0: {type: 't', value: texture[0]},
+            colormap0: {type: 't', value: colormap[0]},
             jitterTexture: {type: 't', value: jitterTexture}
         };
 

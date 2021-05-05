@@ -1093,15 +1093,15 @@ class MultiMIP(Drawable):
 
     Attributes:
         volume: `array_like`.
-            3D array of `float`.
-        color_map: `array_like`.
-            A list of float quadruplets (attribute value, R, G, B), sorted by attribute value. The first
+            A list of 3D arrays of `float`
+        color_map: `list`.
+            A list of lists of float quadruplets (attribute value, R, G, B), sorted by attribute value. The first
             quadruplet should have value 0.0, the last 1.0; R, G, B are RGB color components in the range 0.0 to 1.0.
         opacity_function: `array`.
-            A list of float tuples (attribute value, opacity), sorted by attribute value. The first
+            A list of lists of float tuples (attribute value, opacity), sorted by attribute value. The first
             typles should have value 0.0, the last 1.0; opacity is in the range 0.0 to 1.0.
         color_range: `list`.
-            A pair [min_value, max_value], which determines the levels of color attribute mapped
+            A list of pairs [min_value, max_value], which determines the levels of volume attribute mapped
             to 0 and 1 in the color map respectively.
         samples: `float`.
             Number of iteration per 1 unit of space.
@@ -1112,37 +1112,20 @@ class MultiMIP(Drawable):
     """
 
     type = Unicode(read_only=True).tag(sync=True)
-    volume = TimeSeries(Array()).tag(sync=True, **array_serialization_wrap('volume'))
-    color_map = TimeSeries(Array(dtype=np.float32)).tag(sync=True, **array_serialization_wrap('color_map'))
-    opacity_function = TimeSeries(Array(dtype=np.float32)).tag(sync=True,
+    volume = TimeSeries(List(Array(), minlen=1, maxlen=4)).tag(sync=True, **array_serialization_wrap('volume'))
+    color_map = TimeSeries(List(Array(dtype=np.float32), minlen=1, maxlen=4)).tag(sync=True, **array_serialization_wrap('color_map'))
+    opacity_function = TimeSeries(List(Array(dtype=np.float32), minlen=1, maxlen=4)).tag(sync=True,
                                                                **array_serialization_wrap('opacity_function'))
-    color_range = TimeSeries(ListOrArray(minlen=2, maxlen=2, empty_ok=True)).tag(sync=True)
+    color_range = TimeSeries(List(ListOrArray(minlen=2, maxlen=2, empty_ok=True), minlen=1, maxlen=4)).tag(sync=True)
     gradient_step = TimeSeries(Float()).tag(sync=True)
     samples = TimeSeries(Float()).tag(sync=True)
     model_matrix = TimeSeries(Array(dtype=np.float32)).tag(sync=True, **array_serialization_wrap('model_matrix'))
 
     def __init__(self, **kwargs):
+        print('***** MultiMIP 2 *****')
         super(MultiMIP, self).__init__(**kwargs)
 
         self.set_trait('type', 'MultiMIP')
-
-    @validate('volume')
-    def _validate_volume(self, proposal):
-        if type(proposal['value']) is dict:
-            return proposal['value']
-
-        if type(proposal['value']) is np.ndarray and proposal['value'].dtype is np.dtype(object):
-            return proposal['value'].tolist()
-
-        required = [np.float16, np.float32]
-        actual = proposal['value'].dtype
-
-        if actual not in required:
-            warnings.warn('wrong dtype: %s (%s required)' % (actual, required))
-
-            return proposal['value'].astype(np.float32)
-
-        return proposal['value']
 
     def get_bounding_box(self):
         return get_bounding_box(self.model_matrix)

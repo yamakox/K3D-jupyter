@@ -5,12 +5,27 @@
 precision highp sampler3D;
 
 uniform mat4 transform;
-uniform sampler3D volumeTexture;
 
-uniform sampler2D colormap;
+uniform int number;
+
+uniform sampler3D volumeTexture0;
+uniform sampler3D volumeTexture1;
+uniform sampler3D volumeTexture2;
+uniform sampler3D volumeTexture3;
+
+uniform sampler2D colormap0;
+uniform sampler2D colormap1;
+uniform sampler2D colormap2;
+uniform sampler2D colormap3;
 uniform sampler2D jitterTexture;
-uniform float low;
-uniform float high;
+uniform float low0;
+uniform float low1;
+uniform float low2;
+uniform float low3;
+uniform float high0;
+uniform float high1;
+uniform float high2;
+uniform float high3;
 uniform mat4 modelViewMatrix;
 uniform float samples;
 uniform float gradient_step;
@@ -69,7 +84,7 @@ void intersect(
     tmax = min(min(tmax, tymax), tzmax);
 }
 
-vec3 worldGetNormal(in float px, in vec3 pos)
+vec3 worldGetNormal(in sampler3D volumeTexture, in float px, in vec3 pos)
 {
     return normalize(
         vec3(px -  texture(volumeTexture, pos + vec3(gradient_step, 0, 0)).x,
@@ -86,7 +101,7 @@ void main() {
     float px = -3.402823466e+38F;
     vec4 pxColor = vec4(0.0, 0.0, 0.0, 0.0);
 
-    inv_range = 1.0 / (high - low);
+    inv_range = 1.0 / (high0 - low0);
     aabb[0] = aabb[0] * scale.xyz + translation.xyz;
     aabb[1] = aabb[1] * scale.xyz + translation.xyz;
 
@@ -123,30 +138,30 @@ void main() {
             #pragma unroll_loop_end
         #endif
 
-        float newPx = texture(volumeTexture, textcoord).x;
+        float newPx = texture(volumeTexture0, textcoord).x;
 
         if(newPx > px) {
             px = newPx;
             maxTextcoord = textcoord;
         }
 
-        if (px >= high) {
+        if (px >= high0) {
             break;
         }
     }
 
-    float scaled_px = (px - low) * inv_range;
+    float scaled_px = (px - low0) * inv_range;
 
     if(scaled_px > 0.0) {
         scaled_px = min(scaled_px, 0.99);
 
-        pxColor = texture(colormap, vec2(scaled_px, 0.5));
+        pxColor = texture(colormap0, vec2(scaled_px, 0.5));
     }
 
     // LIGHT
     #if NUM_DIR_LIGHTS > 0
         vec4 addedLights = vec4(ambientLightColor, 1.0);
-        vec3 normal = worldGetNormal(px, maxTextcoord);
+        vec3 normal = worldGetNormal(volumeTexture0, px, maxTextcoord);
 
         vec3 lightDirection;
         float lightingIntensity;

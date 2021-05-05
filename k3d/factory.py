@@ -957,7 +957,7 @@ def mip(volume, color_map=default_colormap, opacity_function=None, color_range=[
 
 
 # noinspection PyShadowingNames
-def multi_mip(volume, color_map=default_colormap, opacity_function=None, color_range=[], samples=512.0, gradient_step=0.005,
+def multi_mip(volume, color_map=[default_colormap], opacity_function=None, color_range=[[]], samples=512.0, gradient_step=0.005,
         name=None, compression_level=0, **kwargs):
     """Create a MultiMIP drawable for 3D volumetric data.
 
@@ -973,15 +973,15 @@ def multi_mip(volume, color_map=default_colormap, opacity_function=None, color_r
 
     Arguments:
         volume: `array_like`.
-            3D array of `float`
+            A list of 3D arrays of `float`
         color_map: `list`.
-            A list of float quadruplets (attribute value, R, G, B), sorted by attribute value. The first
+            A list of lists of float quadruplets (attribute value, R, G, B), sorted by attribute value. The first
             quadruplet should have value 0.0, the last 1.0; R, G, B are RGB color components in the range 0.0 to 1.0.
         opacity_function: `array`.
-            A list of float tuples (attribute value, opacity), sorted by attribute value. The first
+            A list of lists of float tuples (attribute value, opacity), sorted by attribute value. The first
             typles should have value 0.0, the last 1.0; opacity is in the range 0.0 to 1.0.
         color_range: `list`.
-            A pair [min_value, max_value], which determines the levels of volume attribute mapped
+            A list of pairs [min_value, max_value], which determines the levels of volume attribute mapped
             to 0 and 1 in the color map respectively.
         samples: `float`.
             Number of iteration per 1 unit of space.
@@ -992,15 +992,23 @@ def multi_mip(volume, color_map=default_colormap, opacity_function=None, color_r
         kwargs: `dict`.
             Dictionary arguments to configure transform and model_matrix."""
 
-    color_range = check_attribute_range(volume, color_range)
-
     if opacity_function is None:
         opacity_function = [np.min(color_map[::4]), 0.0, np.max(color_map[::4]), 1.0]
 
+    n = len(volume)
+    color_map_ = _fill_list(color_map, n)
+    opacity_function_ = _fill_list(opacity_function, n)
+    color_range_ = _fill_list(color_range, n)
+
+    for i in range(n):
+        color_range_[i] = check_attribute_range(volume[i], color_range_[i])
+
     return process_transform_arguments(
-        MultiMIP(volume=volume, color_map=color_map, opacity_function=opacity_function, color_range=color_range,
+        MultiMIP(volume=volume, color_map=color_map_, opacity_function=opacity_function_, color_range=color_range_,
             compression_level=compression_level, samples=samples, gradient_step=gradient_step, name=name), **kwargs)
 
+def _fill_list(l, n):
+    return l[:n] + [l[-1]] * (n - len(l))
 
 def vtk_poly_data(poly_data, color=_default_color, color_attribute=None, color_map=default_colormap, side='front',
                   wireframe=False, opacity=1.0, volume=[], volume_bounds=[], opacity_function=[], name=None,
