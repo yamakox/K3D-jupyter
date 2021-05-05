@@ -23,6 +23,7 @@ from .factory import (plot,
                       sparse_voxels,
                       volume,
                       mip,
+                      multi_mip,
                       label,
                       vtk_poly_data,
                       voxel_chunk)

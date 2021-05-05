@@ -65,6 +65,7 @@ module.exports = {
         VoxelsGroup: require('./objects/VoxelsGroup'),
         Volume: require('./objects/Volume'),
         MIP: require('./objects/MIP'),
+        MultiMIP: require('./objects/MultiMIP'),
         Label: require('./objects/Label')
     },
     /**
