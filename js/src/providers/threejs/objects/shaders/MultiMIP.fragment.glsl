@@ -162,7 +162,7 @@ vec4 composite(vec4 a, vec4 b) {
     vec4 c;
     a.rgb *= a.aaa;
     b.rgb *= b.aaa;
-    c = a + b - (a * b);
+    c = a + b - a * b;
     c.rgb /= c.a;
     return c;
 }

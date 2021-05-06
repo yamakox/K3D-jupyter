@@ -137,9 +137,12 @@ module.exports = {
         object.updateMatrixWorld();
 
         object.onRemove = function () {
-            object.material.uniforms.volumeTexture.value = undefined;
-            object.material.uniforms.colormap.value.dispose();
-            object.material.uniforms.colormap.value = undefined;
+            for(var i = 0; i < 4; i++) {
+                object.material.uniforms['volumeTexture'+i].value.dispose();
+                object.material.uniforms['volumeTexture'+i].value = undefined;
+                object.material.uniforms['colormap'+i].value.dispose();
+                object.material.uniforms['colormap'+i].value = undefined;
+            }
             jitterTexture.dispose();
             jitterTexture = undefined;
         };
