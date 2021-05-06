@@ -1122,7 +1122,6 @@ class MultiMIP(Drawable):
     model_matrix = TimeSeries(Array(dtype=np.float32)).tag(sync=True, **array_serialization_wrap('model_matrix'))
 
     def __init__(self, **kwargs):
-        print('***** MultiMIP 2 *****')
         super(MultiMIP, self).__init__(**kwargs)
 
         self.set_trait('type', 'MultiMIP')

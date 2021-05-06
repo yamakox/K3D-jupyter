@@ -37,7 +37,7 @@ varying vec3 localPosition;
 varying vec3 transformedCameraPosition;
 varying vec3 transformedWorldPosition;
 
-float inv_range;
+//float inv_range;
 
 struct Ray {
     vec3 origin;
@@ -94,16 +94,12 @@ vec3 worldGetNormal(in sampler3D volumeTexture, in float px, in vec3 pos)
     );
 }
 
-void main() {
+vec4 sampleFrom(in sampler3D volumeTexture, in sampler2D colormap, float low, float high ) {
     float jitter = texture2D(jitterTexture, gl_FragCoord.xy/64.0).r;
 	float tmin = 0.0;
 	float tmax = 0.0;
     float px = -3.402823466e+38F;
     vec4 pxColor = vec4(0.0, 0.0, 0.0, 0.0);
-
-    inv_range = 1.0 / (high0 - low0);
-    aabb[0] = aabb[0] * scale.xyz + translation.xyz;
-    aabb[1] = aabb[1] * scale.xyz + translation.xyz;
 
     vec3 direction = normalize(transformedWorldPosition - transformedCameraPosition);
     intersect(makeRay(transformedCameraPosition, direction), aabb, tmin, tmax);
@@ -119,7 +115,6 @@ void main() {
     textcoord_start = textcoord_start - textcoord_delta * (0.01 + 0.98 * jitter);
 
     vec3 textcoord = textcoord_start - textcoord_delta;
-    vec3 maxTextcoord = textcoord;
 
     float step = length(textcoord_delta);
 
@@ -138,48 +133,60 @@ void main() {
             #pragma unroll_loop_end
         #endif
 
-        float newPx = texture(volumeTexture0, textcoord).x;
+        float newPx = texture(volumeTexture, textcoord).x;
 
         if(newPx > px) {
             px = newPx;
-            maxTextcoord = textcoord;
         }
 
-        if (px >= high0) {
+        if (px >= high) {
             break;
         }
     }
 
-    float scaled_px = (px - low0) * inv_range;
+    float scaled_px = (px - low) / (high - low);
 
     if(scaled_px > 0.0) {
         scaled_px = min(scaled_px, 0.99);
 
-        pxColor = texture(colormap0, vec2(scaled_px, 0.5));
+        pxColor = texture(colormap, vec2(scaled_px, 0.5));
     }
 
     // LIGHT
-    #if NUM_DIR_LIGHTS > 0
-        vec4 addedLights = vec4(ambientLightColor, 1.0);
-        vec3 normal = worldGetNormal(volumeTexture0, px, maxTextcoord);
+    // omitted
 
-        vec3 lightDirection;
-        float lightingIntensity;
+    return pxColor;
+}
 
-        #pragma unroll_loop_start
-        for ( int i = 0; i < NUM_DIR_LIGHTS; i ++ ) {
-            lightDirection = -directionalLights[ i ].direction;
-            lightingIntensity = clamp(dot(-lightDirection, normal), 0.0, 1.0);
-            addedLights.rgb += directionalLights[ i ].color * (0.05 + 0.95 * lightingIntensity);
+vec4 composite(vec4 a, vec4 b) {
+    vec4 c;
+    a.rgb *= a.aaa;
+    b.rgb *= b.aaa;
+    c = a + b - (a * b);
+    c.rgb /= c.a;
+    return c;
+}
 
-            #if (USE_SPECULAR == 1)
-            pxColor.rgb += directionalLights[ i ].color * pow(lightingIntensity, 50.0) * pxColor.a;
-            #endif
-        }
-        #pragma unroll_loop_end
+void main() {
+    aabb[0] = aabb[0] * scale.xyz + translation.xyz;
+    aabb[1] = aabb[1] * scale.xyz + translation.xyz;
 
-        pxColor.rgb *= addedLights.xyz;
-    #endif
+    vec4 pxColor = vec4(0.0, 0.0, 0.0, 0.0);
+    vec4 px = vec4(0.0, 0.0, 0.0, 0.0);
+
+    pxColor = sampleFrom(volumeTexture0, colormap0, low0, high0);
+    if (number > 1) {
+        px = sampleFrom(volumeTexture1, colormap1, low1, high1);
+        pxColor = composite(pxColor, px);
+    }
+    if (number > 2) {
+        px = sampleFrom(volumeTexture2, colormap2, low2, high2);
+        pxColor = composite(pxColor, px);
+    }
+    if (number > 3) {
+        px = sampleFrom(volumeTexture3, colormap3, low3, high3);
+        pxColor = composite(pxColor, px);
+    }
 
     gl_FragColor = pxColor;
 }

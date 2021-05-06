@@ -58,6 +58,9 @@ module.exports = {
             
             texture.push(texture_);
         }
+        for(var i = number; i < 4; i++) {
+            texture.push(new THREE.DataTexture3D());    // dummy
+        }
 
         jitterTexture = new THREE.DataTexture(
             new Uint8Array(_.range(64 * 64).map(function () {
@@ -77,21 +80,36 @@ module.exports = {
             colormap_.needsUpdate = true;
             colormap.push(colormap_);
         }
+        for(var i = number; i < 4; i++) {
+            colormap.push(new THREE.Texture());    // dummy
+        }
         
         var uniforms = {
             //volumeMapSize: {value: new THREE.Vector3(config.volume[0].shape[2], config.volume[0].shape[1], config.volume[0].shape[0])},
             number: {value: number},
-            low0: {value: colorRange[0][0]},
-            high0: {value: colorRange[0][1]},
+            //low0: {value: colorRange[0][0]},
+            //high0: {value: colorRange[0][1]},
             gradient_step: {value: config.gradient_step},
             samples: {value: samples},
             translation: {value: translation},
             rotation: {value: rotation},
             scale: {value: scale},
-            volumeTexture0: {type: 't', value: texture[0]},
-            colormap0: {type: 't', value: colormap[0]},
+            //volumeTexture0: {type: 't', value: texture[0]},
+            //colormap0: {type: 't', value: colormap[0]},
             jitterTexture: {type: 't', value: jitterTexture}
         };
+        for( var i = 0; i < number; i++ ) {
+            uniforms['volumeTexture'+i] = {type: 't', value: texture[i]};
+            uniforms['colormap'+i] = {type: 't', value: colormap[i]};
+            uniforms['low'+i] = {value: colorRange[i][0]};
+            uniforms['high'+i] = {value: colorRange[i][1]};
+        }
+        for( var i = number; i < 4; i++ ) {
+            uniforms['volumeTexture'+i] = {type: 't', value: texture[i]};
+            uniforms['colormap'+i] = {type: 't', value: colormap[i]};
+            uniforms['low'+i] = {value: 0.0};
+            uniforms['high'+i] = {value: 1.0};
+        }
 
         var material = new THREE.ShaderMaterial({
             uniforms: _.merge(
@@ -129,6 +147,7 @@ module.exports = {
         return Promise.resolve(object);
     },
 
+    // @TODO: create同様にvolume, color_map, opacity_function, color_rangeのリスト化対応が必要。
     update: function (config, changes, obj) {
         var resolvedChanges = {};
 
