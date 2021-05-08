@@ -11,7 +11,7 @@ var THREE = require('three'),
 
 /**
  * Loader strategy to handle Volume object
- * @method Volume
+ * @method MultiMIP
  * @memberof K3D.Providers.ThreeJS.Objects
  * @param {Object} config all configurations params from JSON
  * @param {K3D}
@@ -22,15 +22,15 @@ module.exports = {
         config.samples = config.samples || 512.0;
         config.gradient_step = config.gradient_step || 0.005;
 
-        var number = config.volume.length;
+        var number = config.volume_list.length;
         var geometry = new THREE.BoxBufferGeometry(1, 1, 1),
             modelMatrix = new THREE.Matrix4(),
             translation = new THREE.Vector3(),
             rotation = new THREE.Quaternion(),
             scale = new THREE.Vector3(),
-            colorMap = config.color_map,
-            opacityFunction = config.opacity_function,
-            colorRange = config.color_range,
+            colorMap = config.color_map_list,
+            opacityFunction = config.opacity_function_list,
+            colorRange = config.color_range_list,
             samples = config.samples,
             object,
             texture = [],
@@ -42,13 +42,13 @@ module.exports = {
 
         for( var i = 0; i < number; i++ ) {
             var texture_ = new THREE.DataTexture3D(
-                config.volume[i].data,
-                config.volume[i].shape[2],
-                config.volume[i].shape[1],
-                config.volume[i].shape[0]);
+                config.volume_list[i].data,
+                config.volume_list[i].shape[2],
+                config.volume_list[i].shape[1],
+                config.volume_list[i].shape[0]);
             
             texture_.format = THREE.RedFormat;
-            texture_.type = typedArrayToThree(config.volume[i].data.constructor);
+            texture_.type = typedArrayToThree(config.volume_list[i].data.constructor);
             
             texture_.generateMipmaps = false;
             texture_.minFilter = THREE.LinearFilter;
@@ -57,9 +57,6 @@ module.exports = {
             texture_.needsUpdate = true;
             
             texture.push(texture_);
-        }
-        for(var i = number; i < 4; i++) {
-            texture.push(new THREE.DataTexture3D());    // dummy
         }
 
         jitterTexture = new THREE.DataTexture(
@@ -80,22 +77,14 @@ module.exports = {
             colormap_.needsUpdate = true;
             colormap.push(colormap_);
         }
-        for(var i = number; i < 4; i++) {
-            colormap.push(new THREE.Texture());    // dummy
-        }
-        
+
         var uniforms = {
-            //volumeMapSize: {value: new THREE.Vector3(config.volume[0].shape[2], config.volume[0].shape[1], config.volume[0].shape[0])},
             number: {value: number},
-            //low0: {value: colorRange[0][0]},
-            //high0: {value: colorRange[0][1]},
             gradient_step: {value: config.gradient_step},
             samples: {value: samples},
             translation: {value: translation},
             rotation: {value: rotation},
             scale: {value: scale},
-            //volumeTexture0: {type: 't', value: texture[0]},
-            //colormap0: {type: 't', value: colormap[0]},
             jitterTexture: {type: 't', value: jitterTexture}
         };
         for( var i = 0; i < number; i++ ) {
@@ -105,8 +94,8 @@ module.exports = {
             uniforms['high'+i] = {value: colorRange[i][1]};
         }
         for( var i = number; i < 4; i++ ) {
-            uniforms['volumeTexture'+i] = {type: 't', value: texture[i]};
-            uniforms['colormap'+i] = {type: 't', value: colormap[i]};
+            uniforms['volumeTexture'+i] = {type: 't', value: new THREE.DataTexture3D()};
+            uniforms['colormap'+i] = {type: 't', value: new THREE.Texture()};
             uniforms['low'+i] = {value: 0.0};
             uniforms['high'+i] = {value: 1.0};
         }
@@ -117,14 +106,14 @@ module.exports = {
                 THREE.UniformsLib.lights
             ),
             defines: {
-                USE_SPECULAR: 1
+                USE_SPECULAR: 0
             },
             vertexShader: require('./shaders/MultiMIP.vertex.glsl'),
             fragmentShader: require('./shaders/MultiMIP.fragment.glsl'),
             side: THREE.BackSide,
             depthTest: false,
             depthWrite: false,
-            lights: true,
+            lights: false,
             clipping: true,
             transparent: true
         });

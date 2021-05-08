@@ -161,7 +161,11 @@ ObjectModel = widgets.WidgetModel.extend({
         volume_bounds: serialize,
         spacings_x: serialize,
         spacings_y: serialize,
-        spacings_z: serialize
+        spacings_z: serialize,
+        volume_list: serialize,
+        color_map_list: serialize,
+        opacity_function_list: serialize,
+        color_range_list: serialize,
     }, widgets.WidgetModel.serializers)
 });
 
