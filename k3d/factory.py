@@ -993,16 +993,24 @@ def multi_mip(volume_list, color_map_list=[default_colormap], opacity_function_l
             Dictionary arguments to configure transform and model_matrix."""
 
     if opacity_function_list is None:
-        a = np.array([color_map[::4] for color_map in color_map_list])
-        opacity_function_list = [a.min(), 0.0, a.max(), 1.0]
+        opacity_function_list = []
+        for color_map in color_map_list:
+            opacity_function_list.append([np.min(color_map[::4]), 0.0, np.max(color_map[::4]), 1.0])
+
+    for i, color_range in enumerate(color_range_list):
+        color_range_list[i] = check_attribute_range(volume_list[i], color_range)
 
     n = len(volume_list)
-    for i in range(n):
-        color_range_list[i] = check_attribute_range(volume_list[i], color_range_list[i])
+    color_map_list = _fill_list(color_map_list, n)
+    opacity_function_list = _fill_list(opacity_function_list, n)
+    color_range_list = _fill_list(color_range_list, n)
 
     return process_transform_arguments(
         MultiMIP(volume_list=volume_list, color_map_list=color_map_list, opacity_function_list=opacity_function_list, color_range_list=color_range_list,
             compression_level=compression_level, samples=samples, gradient_step=gradient_step, name=name), **kwargs)
+
+def _fill_list(x, n):
+    return x + [x[-1]] * (n - len(x))
 
 
 def vtk_poly_data(poly_data, color=_default_color, color_attribute=None, color_map=default_colormap, side='front',
