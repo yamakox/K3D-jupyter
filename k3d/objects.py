@@ -1107,6 +1107,8 @@ class MultiMIP(Drawable):
             Number of iteration per 1 unit of space.
         gradient_step: `float`
             Gradient light step.
+        alpha_blending: `bool`.
+            Whether alpha_blending is enabled.
         model_matrix: `array_like`.
             4x4 model transform matrix.
     """
@@ -1119,6 +1121,7 @@ class MultiMIP(Drawable):
     color_range_list = TimeSeries(List(ListOrArray(minlen=2, maxlen=2, empty_ok=True), minlen=1, maxlen=4)).tag(sync=True, 
                                                                 **array_serialization_wrap('opacity_function_list'))
     gradient_step = TimeSeries(Float()).tag(sync=True)
+    alpha_blending = TimeSeries(Bool()).tag(sync=True)
     samples = TimeSeries(Float()).tag(sync=True)
     model_matrix = TimeSeries(Array(dtype=np.float32)).tag(sync=True, **array_serialization_wrap('model_matrix'))
 

@@ -957,8 +957,8 @@ def mip(volume, color_map=default_colormap, opacity_function=None, color_range=[
 
 
 # noinspection PyShadowingNames
-def multi_mip(volume_list, color_map_list=[default_colormap], opacity_function_list=None, color_range_list=[[]], samples=512.0, gradient_step=0.005,
-        name=None, compression_level=0, **kwargs):
+def multi_mip(volume_list, color_map_list=[default_colormap], opacity_function_list=None, color_range_list=[[]], 
+        samples=512.0, gradient_step=0.005, alpha_blending=False, name=None, compression_level=0, **kwargs):
     """Create a MultiMIP drawable for 3D volumetric data.
 
     By default, the volume are a grid inscribed in the -0.5 < x, y, z < 0.5 cube
@@ -987,7 +987,9 @@ def multi_mip(volume_list, color_map_list=[default_colormap], opacity_function_l
             Number of iteration per 1 unit of space.
         gradient_step: `float`.
             Gradient light step.
-       name: `string`.
+        alpha_blending: `bool`.
+            Whether alpha_blending is enabled.
+        name: `string`.
             A name of a object
         kwargs: `dict`.
             Dictionary arguments to configure transform and model_matrix."""
@@ -1007,7 +1009,7 @@ def multi_mip(volume_list, color_map_list=[default_colormap], opacity_function_l
 
     return process_transform_arguments(
         MultiMIP(volume_list=volume_list, color_map_list=color_map_list, opacity_function_list=opacity_function_list, color_range_list=color_range_list,
-            compression_level=compression_level, samples=samples, gradient_step=gradient_step, name=name), **kwargs)
+            compression_level=compression_level, samples=samples, gradient_step=gradient_step, alpha_blending=alpha_blending, name=name), **kwargs)
 
 def _expand_list(x, n):
     return x + [x[-1]] * (n - len(x))

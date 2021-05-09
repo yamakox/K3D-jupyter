@@ -7,6 +7,7 @@ precision highp sampler3D;
 uniform mat4 transform;
 
 uniform int number;
+uniform bool alpha_blending;
 
 uniform sampler3D volumeTexture0;
 uniform sampler3D volumeTexture1;
@@ -163,7 +164,11 @@ vec4 composite(vec4 a, vec4 b) {
     a.rgb *= a.aaa;
     b.rgb *= b.aaa;
     c = a + b - a * b;
-    c.rgb /= c.a;
+    if (alpha_blending) {
+        c.rgb /= c.a;
+    } else {
+        c.a = 1.0;
+    }
     return c;
 }
 

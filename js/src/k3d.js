@@ -166,6 +166,7 @@ ObjectModel = widgets.WidgetModel.extend({
         color_map_list: serialize,
         opacity_function_list: serialize,
         color_range_list: serialize,
+        alpha_blending: serialize,
     }, widgets.WidgetModel.serializers)
 });
 
