@@ -1001,15 +1001,15 @@ def multi_mip(volume_list, color_map_list=[default_colormap], opacity_function_l
         color_range_list[i] = check_attribute_range(volume_list[i], color_range)
 
     n = len(volume_list)
-    color_map_list = _fill_list(color_map_list, n)
-    opacity_function_list = _fill_list(opacity_function_list, n)
-    color_range_list = _fill_list(color_range_list, n)
+    color_map_list = _expand_list(color_map_list, n)
+    opacity_function_list = _expand_list(opacity_function_list, n)
+    color_range_list = _expand_list(color_range_list, n)
 
     return process_transform_arguments(
         MultiMIP(volume_list=volume_list, color_map_list=color_map_list, opacity_function_list=opacity_function_list, color_range_list=color_range_list,
             compression_level=compression_level, samples=samples, gradient_step=gradient_step, name=name), **kwargs)
 
-def _fill_list(x, n):
+def _expand_list(x, n):
     return x + [x[-1]] * (n - len(x))
 
 
