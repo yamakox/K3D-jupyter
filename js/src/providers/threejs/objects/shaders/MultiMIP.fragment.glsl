@@ -161,14 +161,10 @@ vec4 sampleFrom(in sampler3D volumeTexture, in sampler2D colormap, float low, fl
 
 vec4 composite(vec4 a, vec4 b) {
     vec4 c;
-    a.rgb *= a.aaa;
-    b.rgb *= b.aaa;
+    a.rgb *= a.a;
+    b.rgb *= b.a;
     c = a + b - a * b;
-    if (alpha_blending) {
-        c.rgb /= c.a;
-    } else {
-        c.a = 1.0;
-    }
+    c.rgb /= c.a;
     return c;
 }
 
@@ -191,6 +187,11 @@ void main() {
     if (number > 3) {
         px = sampleFrom(volumeTexture3, colormap3, low3, high3);
         pxColor = composite(pxColor, px);
+    }
+
+    if (!alpha_blending) {
+        pxColor.rgb *= pxColor.a;
+        pxColor.a = 1.0;
     }
 
     gl_FragColor = pxColor;
