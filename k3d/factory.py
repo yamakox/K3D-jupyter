@@ -957,7 +957,7 @@ def mip(volume, color_map=default_colormap, opacity_function=None, color_range=[
 
 
 # noinspection PyShadowingNames
-def multi_mip(volume_list, color_map_list=[default_colormap], opacity_function_list=None, color_range_list=[[]], 
+def multi_mip(volume_list, color_map_list=[default_colormap], opacity_function_list=None, color_range_list=None, 
         samples=512.0, gradient_step=0.005, alpha_blending=False, name=None, compression_level=0, **kwargs):
     """Create a MultiMIP drawable for 3D volumetric data.
 
@@ -999,8 +999,10 @@ def multi_mip(volume_list, color_map_list=[default_colormap], opacity_function_l
         for color_map in color_map_list:
             opacity_function_list.append([np.min(color_map[::4]), 0.0, np.max(color_map[::4]), 1.0])
 
-    for i, color_range in enumerate(color_range_list):
-        color_range_list[i] = check_attribute_range(volume_list[i], color_range)
+    if color_range_list is None:
+        color_range_list = []
+        for volume in volume_list:
+            color_range_list.append(check_attribute_range(volume))
 
     n = len(volume_list)
     color_map_list = _expand_list(color_map_list, n)
