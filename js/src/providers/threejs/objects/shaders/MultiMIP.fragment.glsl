@@ -172,21 +172,30 @@ void main() {
     aabb[0] = aabb[0] * scale.xyz + translation.xyz;
     aabb[1] = aabb[1] * scale.xyz + translation.xyz;
 
-    vec4 pxColor = vec4(0.0, 0.0, 0.0, 0.0);
-    vec4 px = vec4(0.0, 0.0, 0.0, 0.0);
+    vec4 pxColor;
 
-    pxColor = sampleFrom(volumeTexture0, colormap0, low0, high0);
-    if (number > 1) {
-        px = sampleFrom(volumeTexture1, colormap1, low1, high1);
-        pxColor = composite(pxColor, px);
-    }
-    if (number > 2) {
-        px = sampleFrom(volumeTexture2, colormap2, low2, high2);
-        pxColor = composite(pxColor, px);
-    }
-    if (number > 3) {
-        px = sampleFrom(volumeTexture3, colormap3, low3, high3);
-        pxColor = composite(pxColor, px);
+    switch(number) {
+        case 1:
+            pxColor = sampleFrom(volumeTexture0, colormap0, low0, high0);
+            break;
+        case 2:
+            pxColor = sampleFrom(volumeTexture0, colormap0, low0, high0);
+            pxColor = composite(pxColor, sampleFrom(volumeTexture1, colormap1, low1, high1));
+            break;
+        case 3:
+            pxColor = sampleFrom(volumeTexture0, colormap0, low0, high0);
+            pxColor = composite(pxColor, sampleFrom(volumeTexture1, colormap1, low1, high1));
+            pxColor = composite(pxColor, sampleFrom(volumeTexture2, colormap2, low2, high2));
+            break;
+        case 4:
+            pxColor = sampleFrom(volumeTexture0, colormap0, low0, high0);
+            pxColor = composite(pxColor, sampleFrom(volumeTexture1, colormap1, low1, high1));
+            pxColor = composite(pxColor, sampleFrom(volumeTexture2, colormap2, low2, high2));
+            pxColor = composite(pxColor, sampleFrom(volumeTexture3, colormap3, low3, high3));
+            break;
+        default:
+            pxColor = vec4(0.0, 0.0, 0.0, 0.0);
+            break;
     }
 
     if (!alpha_blending) {
