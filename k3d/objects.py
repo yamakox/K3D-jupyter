@@ -1424,15 +1424,15 @@ class MultiMIP(Drawable):
     regardless of the passed voxel array shape (aspect ratio etc.).
 
     Attributes:
-        volume_list: `array_like`.
+        volume_list: `list[array_like]`.
             A list of 3D arrays of `float`
-        color_map_list: `list`.
+        color_map_list: `list[array_like]`.
             A list of lists of float quadruplets (attribute value, R, G, B), sorted by attribute value. The first
             quadruplet should have value 0.0, the last 1.0; R, G, B are RGB color components in the range 0.0 to 1.0.
-        opacity_function_list: `array`.
+        opacity_function_list: `list[list]`.
             A list of lists of float tuples (attribute value, opacity), sorted by attribute value. The first
             typles should have value 0.0, the last 1.0; opacity is in the range 0.0 to 1.0.
-        color_range_list: `list`.
+        color_range_list: `list[list]`.
             A list of pairs [min_value, max_value], which determines the levels of volume attribute mapped
             to 0 and 1 in the color map respectively.
         samples: `float`.
@@ -1440,22 +1440,39 @@ class MultiMIP(Drawable):
         gradient_step: `float`
             Gradient light step.
         alpha_blending: `bool`.
-            Whether alpha_blending is enabled.
+            Whether alpha blending is enabled.
+        mask: `array_like`.
+            3D array of `int` in range (0, 255).
+        mask_opacities: `array_like`.
+            List of opacity values for mask.
         model_matrix: `array_like`.
             4x4 model transform matrix.
     """
 
     type = Unicode(read_only=True).tag(sync=True)
-    volume_list = TimeSeries(List(Array(), minlen=1, maxlen=4)).tag(sync=True, **array_serialization_wrap('volume_list'))
-    color_map_list = TimeSeries(List(Array(dtype=np.float32), minlen=1, maxlen=4)).tag(sync=True, **array_serialization_wrap('color_map_list'))
-    opacity_function_list = TimeSeries(List(Array(dtype=np.float32), minlen=1, maxlen=4)).tag(sync=True,
-                                                               **array_serialization_wrap('opacity_function_list'))
-    color_range_list = TimeSeries(List(ListOrArray(minlen=2, maxlen=2, empty_ok=True), minlen=1, maxlen=4)).tag(sync=True, 
-                                                                **array_serialization_wrap('opacity_function_list'))
+    volume_list = TimeSeries(List(Array(), minlen=1, maxlen=4)).tag(
+        sync=True, **array_serialization_wrap('volume_list')
+    )
+    color_map_list = TimeSeries(List(Array(dtype=np.float32), minlen=1, maxlen=4)).tag(
+        sync=True, **array_serialization_wrap('color_map_list')
+    )
+    opacity_function_list = TimeSeries(List(Array(dtype=np.float32), minlen=1, maxlen=4)).tag(
+        sync=True, **array_serialization_wrap('opacity_function_list')
+    )
+    color_range_list = TimeSeries(List(ListOrArray(minlen=2, maxlen=2, empty_ok=True), minlen=1, maxlen=4)).tag(
+        sync=True, **array_serialization_wrap('opacity_function_list')
+    )
     gradient_step = TimeSeries(Float()).tag(sync=True)
     alpha_blending = TimeSeries(Bool()).tag(sync=True)
     samples = TimeSeries(Float()).tag(sync=True)
-    model_matrix = TimeSeries(Array(dtype=np.float32)).tag(sync=True, **array_serialization_wrap('model_matrix'))
+    interpolation = TimeSeries(Bool()).tag(sync=True)
+    mask = Array(dtype=np.uint8).tag(sync=True, **array_serialization_wrap('mask'))
+    mask_opacities = TimeSeries(Array(dtype=np.float32)).tag(
+        sync=True, **array_serialization_wrap('mask_opacities')
+    )
+    model_matrix = TimeSeries(Array(dtype=np.float32)).tag(
+        sync=True, **array_serialization_wrap('model_matrix')
+    )
 
     def __init__(self, **kwargs):
         super(MultiMIP, self).__init__(**kwargs)
@@ -1647,6 +1664,7 @@ objects_map = {
     'Line': Line,
     'Label': Label,
     'MIP': MIP,
+    'MultiMIP': MultiMIP,
     'MarchingCubes': MarchingCubes,
     'Mesh': Mesh,
     'Points': Points,
