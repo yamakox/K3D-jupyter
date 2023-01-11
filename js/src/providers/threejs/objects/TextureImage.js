@@ -1,10 +1,8 @@
-'use strict';
-
-var THREE = require('three'),
-    intersectHelper = require('./../helpers/Intersection'),
-    areAllChangesResolve = require('./../helpers/Fn').areAllChangesResolve,
-    commonUpdate = require('./../helpers/Fn').commonUpdate,
-    buffer = require('./../../../core/lib/helpers/buffer');
+const THREE = require('three');
+const interactionsHelper = require('../helpers/Interactions');
+const {areAllChangesResolve} = require('../helpers/Fn');
+const {commonUpdate} = require('../helpers/Fn');
+const buffer = require('../../../core/lib/helpers/buffer');
 
 /**
  * Loader strategy to handle Texture object
@@ -14,25 +12,26 @@ var THREE = require('three'),
  * @return {Object} 3D object ready to render
  */
 module.exports = {
-    create: function (config, K3D) {
-        return new Promise(function (resolve) {
-            var geometry = new THREE.PlaneBufferGeometry(1, 1),
-                modelMatrix = new THREE.Matrix4(),
-                texture = new THREE.Texture(),
-                image,
-                material,
-                object;
+    create(config, K3D) {
+        return new Promise((resolve) => {
+            const geometry = new THREE.PlaneBufferGeometry(1, 1);
+            const modelMatrix = new THREE.Matrix4();
+            const texture = new THREE.Texture();
+            let material;
+            let object;
 
-            image = document.createElement('img');
-            image.src = 'data:image/' + config.file_format + ';base64,' +
-                        buffer.bufferToBase64(config.binary.buffer);
+            config.interpolation = typeof (config.interpolation) !== 'undefined' ? config.interpolation : true;
+
+            const image = document.createElement('img');
+            image.src = `data:image/${config.file_format};base64,${
+                buffer.bufferToBase64(config.binary.data.buffer)}`;
 
             if (config.puv.data.length === 9) {
-                var positionArray = geometry.attributes.position.array;
+                const positionArray = geometry.attributes.position.array;
 
-                var p = new THREE.Vector3().fromArray(config.puv.data, 0);
-                var u = new THREE.Vector3().fromArray(config.puv.data, 3);
-                var v = new THREE.Vector3().fromArray(config.puv.data, 6);
+                const p = new THREE.Vector3().fromArray(config.puv.data, 0);
+                const u = new THREE.Vector3().fromArray(config.puv.data, 3);
+                const v = new THREE.Vector3().fromArray(config.puv.data, 6);
 
                 p.toArray(positionArray, 0);
                 p.clone().add(u).toArray(positionArray, 3);
@@ -49,12 +48,20 @@ module.exports = {
                 material = new THREE.MeshBasicMaterial({color: 0xffffff, side: THREE.DoubleSide, map: texture});
                 object = new THREE.Mesh(geometry, material);
 
-                intersectHelper.init(config, object, K3D);
+                interactionsHelper.init(config, object, K3D);
 
                 modelMatrix.set.apply(modelMatrix, config.model_matrix.data);
                 object.applyMatrix4(modelMatrix);
 
                 object.updateMatrixWorld();
+
+                if (config.interpolation) {
+                    texture.minFilter = THREE.LinearFilter;
+                    texture.magFilter = THREE.LinearFilter;
+                } else {
+                    texture.minFilter = THREE.NearestFilter;
+                    texture.magFilter = THREE.NearestFilter;
+                }
 
                 texture.image = image;
                 texture.flipY = false;
@@ -66,16 +73,15 @@ module.exports = {
         });
     },
 
-    update: function (config, changes, obj, K3D) {
-        var resolvedChanges = {};
+    update(config, changes, obj, K3D) {
+        const resolvedChanges = {};
 
-        intersectHelper.update(config, changes, resolvedChanges, obj, K3D);
-        commonUpdate(config, changes, resolvedChanges, obj);
+        interactionsHelper.update(config, changes, resolvedChanges, obj);
+        commonUpdate(config, changes, resolvedChanges, obj, K3D);
 
         if (areAllChangesResolve(changes, resolvedChanges)) {
-            return Promise.resolve({json: config, obj: obj});
-        } else {
-            return false;
+            return Promise.resolve({json: config, obj});
         }
-    }
+        return false;
+    },
 };

@@ -1,39 +1,59 @@
-'use strict';
-
-var mathHelper = require('./helpers/math'),
-    colorMapHelper = require('./helpers/colorMap');
+const mathHelper = require('./helpers/math');
+const colorMapHelper = require('./helpers/colorMap');
+const _ = require('../../lodash');
 
 function getColorLegend(K3D, object) {
-    var svg,
-        svgNS,
-        rect,
-        line, text, textShadow, textGroup, tick,
-        margin = 5,
-        majorScale,
-        colorRange,
-        range = [],
-        intervals = [],
-        texts = [],
-        maxTextWidth = 0,
-        intervalOffset,
-        intervalCount = 0,
-        strokeWidth = 0.5,
-        resizeListenerId = null,
-        i, y;
+    let line;
+    let text;
+    let textShadow;
+    let textGroup;
+    let tick;
+    const margin = 5;
+    let majorScale;
+    const range = [];
+    const intervals = [];
+    const texts = [];
+    let maxTextWidth = 0;
+    let intervalOffset;
+    let intervalCount = 0;
+    const strokeWidth = 0.5;
+    let resizeListenerId = null;
+    let i;
 
-    if (K3D.colorMapNode) {
-        K3D.getWorld().targetDOMNode.removeChild(K3D.colorMapNode);
-        K3D.colorMapNode = null;
+    if (!K3D.lastColorMap) {
+        K3D.lastColorMap = {
+            objectId: null,
+            colorRange: [null, null],
+            colorMap: null
+        };
     }
 
     if (typeof (object) !== 'object') {
         return;
     }
 
-    svg = document.createElementNS('http://www.w3.org/2000/svg', 'svg');
-    svgNS = svg.namespaceURI;
-    rect = document.createElementNS(svgNS, 'rect');
+    range[0] = Math.min(object.color_range[0], object.color_range[1]);
+    range[1] = Math.max(object.color_range[0], object.color_range[1]);
 
+    // avoid regenerating colormap
+    if (K3D.lastColorMap.objectId === object.id &&
+        K3D.lastColorMap.colorRange[0] == range[0] &&
+        K3D.lastColorMap.colorRange[1] == range[1] &&
+        _.isEqual(K3D.lastColorMap.colorMap, object.color_map.data)) {
+        return;
+    }
+
+
+    if (K3D.colorMapNode) {
+        K3D.getWorld().targetDOMNode.removeChild(K3D.colorMapNode);
+        K3D.colorMapNode = null;
+    }
+
+    const svg = document.createElementNS('http://www.w3.org/2000/svg', 'svg');
+    const svgNS = svg.namespaceURI;
+    const rect = document.createElementNS(svgNS, 'rect');
+
+    svg.setAttribute('class', 'colorMapLegend');
     svg.setAttribute('viewBox', '0 0 100 100');
     svg.style.cssText = [
         'position: absolute',
@@ -47,15 +67,15 @@ function getColorLegend(K3D, object) {
         'min-height: 150px',
         'z-index: 16777271',
         'pointer-events: none',
-        'font-family: KaTeX_Main'
+        'font-family: KaTeX_Main',
     ].join(';');
 
-    colorMapHelper.createSVGGradient(svg, 'colormap' + object.id, object.color_map.data);
+    colorMapHelper.createSVGGradient(svg, `colormap${object.id}`, object.color_map.data);
 
     rect.setAttribute('stroke-width', strokeWidth.toString(10));
     rect.setAttribute('stroke-linecap', 'square');
     rect.setAttribute('stroke', 'black');
-    rect.setAttribute('fill', 'url(#colormap' + object.id + ')');
+    rect.setAttribute('fill', `url(#colormap${object.id})`);
     rect.setAttribute('width', (15 - margin).toString(10));
     rect.setAttribute('height', (100 - margin * 2).toString(10));
     rect.setAttribute('x', margin.toString(10));
@@ -63,10 +83,8 @@ function getColorLegend(K3D, object) {
 
     svg.appendChild(rect);
 
-    range[0] = Math.min(object.color_range[0], object.color_range[1]);
-    range[1] = Math.max(object.color_range[0], object.color_range[1]);
 
-    colorRange = range[1] - range[0];
+    const colorRange = range[1] - range[0];
     majorScale = mathHelper.pow10ceil(Math.abs(colorRange)) / 10.0;
 
     while (intervalCount < 4) {
@@ -83,12 +101,14 @@ function getColorLegend(K3D, object) {
         intervals.push(range[0] + intervalOffset + i * majorScale);
     }
 
-    intervals.forEach(function (v) {
+    intervals.forEach((v) => {
         textGroup = document.createElementNS(svgNS, 'g');
         line = document.createElementNS(svgNS, 'line');
         text = document.createElementNS(svgNS, 'text');
         textShadow = document.createElementNS(svgNS, 'text');
-        y = margin + (100 - margin * 2) * (1.0 - (v - range[0]) / colorRange);
+
+        const y = margin + (100 - margin * 2) * (1.0 - (v - range[0]) / colorRange);
+
         if (K3D.parameters.colorbarScientific) {
             tick = v.toPrecision(4);
         } else {
@@ -133,7 +153,7 @@ function getColorLegend(K3D, object) {
     function tryPosLabels() {
         if (K3D.getWorld().width < 10 || K3D.getWorld().height < 10) {
             if (resizeListenerId === null) {
-                resizeListenerId = K3D.on(K3D.events.RESIZED, function () {
+                resizeListenerId = K3D.on(K3D.events.RESIZED, () => {
                     tryPosLabels();
                 });
             }
@@ -143,15 +163,13 @@ function getColorLegend(K3D, object) {
                 resizeListenerId = null;
             }
 
-            maxTextWidth = texts.reduce(function (max, text) {
-                return Math.max(max, text.getBBox().width);
-            }, 0);
+            maxTextWidth = texts.reduce((max, t) => Math.max(max, t.getBBox().width), 0);
 
-            texts.forEach(function (text) {
-                var x = (maxTextWidth + 20).toString(10),
-                    y = text.getAttribute('pos_y');
+            texts.forEach((t) => {
+                const x = (maxTextWidth + 20).toString(10);
+                const y = t.getAttribute('pos_y');
 
-                text.setAttribute('transform', 'translate(' + x + ', ' + y + ')');
+                t.setAttribute('transform', `translate(${x}, ${y})`);
             });
         }
     }
@@ -159,8 +177,14 @@ function getColorLegend(K3D, object) {
     tryPosLabels();
 
     K3D.colorMapNode = svg;
+
+    K3D.lastColorMap = {
+        objectId: object.id,
+        colorRange: range,
+        colorMap: object.color_map.data
+    };
 }
 
 module.exports = {
-    getColorLegend: getColorLegend
+    getColorLegend,
 };

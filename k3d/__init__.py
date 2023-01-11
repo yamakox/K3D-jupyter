@@ -1,12 +1,14 @@
-from ._version import version_info, __version__
+import json
+from pathlib import Path
 
-from .colormaps import paraview_color_maps
+from ._version import __version__
 from .colormaps import basic_color_maps
 from .colormaps import matplotlib_color_maps
-
+from .colormaps import paraview_color_maps
 from .factory import (plot,
                       nice_colors,
                       line,
+                      lines,
                       marching_cubes,
                       mesh,
                       points,
@@ -27,12 +29,22 @@ from .factory import (plot,
                       label,
                       vtk_poly_data,
                       voxel_chunk)
-
+from .objects import create_object, clone_object
 from .plot import Plot
-
 from .transfer_function_editor import transfer_function_editor
-
 from .transform import transform
+
+HERE = Path(__file__).parent.resolve()
+
+with (HERE / "labextension" / "package.json").open() as fid:
+    data = json.load(fid)
+
+
+def _jupyter_labextension_paths():
+    return [{
+        "src": "labextension",
+        "dest": data["name"]
+    }]
 
 
 def _jupyter_nbextension_paths():

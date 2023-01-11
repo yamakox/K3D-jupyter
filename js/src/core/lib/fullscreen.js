@@ -1,14 +1,12 @@
-'use strict';
+const screenfull = require('screenfull').default;
 
-var screenfull = require('screenfull');
+function fullscreenGUI(container, gui, currentWindow, K3D) {
+    const obj = {
+        fullscreen: false,
+    };
 
-function fullscreenGUI(container, gui, currentWindow) {
-    var obj = {
-            fullscreen: false
-        },
-        controller;
-
-    controller = gui.add(obj, 'fullscreen').name('Full screen').onChange(function (value) {
+    const controller = gui.add(obj, 'fullscreen').name('Full screen').onChange((value) => {
+        K3D.heavyOperationSync = true;
         if (value) {
             screenfull.request(container);
         } else {
@@ -16,7 +14,7 @@ function fullscreenGUI(container, gui, currentWindow) {
         }
     });
 
-    currentWindow.addEventListener(screenfull.raw.fullscreenchange, function () {
+    currentWindow.addEventListener(screenfull.raw.fullscreenchange, () => {
         obj.fullscreen = screenfull.isFullscreen;
 
         controller.updateDisplay();
@@ -25,9 +23,10 @@ function fullscreenGUI(container, gui, currentWindow) {
 }
 
 module.exports = {
-    isAvailable: function () {
-        return screenfull.enabled;
+    isAvailable() {
+        return screenfull.isEnabled;
     },
 
-    initialize: fullscreenGUI
+    initialize: fullscreenGUI,
+    screenfull,
 };

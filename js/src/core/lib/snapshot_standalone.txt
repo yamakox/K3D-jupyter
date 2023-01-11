@@ -17,43 +17,47 @@
             position: absolute;
         }
     </style>
-    <script id='pakojs'>[PAKO_JS]</script>
+    <script id='fflatejs'>[FFLATE_JS]</script>
     <script>
         window.k3dCompressed = '[K3D_SOURCE]';
-        var k3dSource = pako.inflate(atob(window.k3dCompressed), {'to': 'string'});
+
+        function _base64ToArrayBuffer(base64) {
+            var binary_string = window.atob(base64);
+            var len = binary_string.length;
+            var bytes = new Uint8Array(len);
+            for (var i = 0; i < len; i++) {
+                bytes[i] = binary_string.charCodeAt(i);
+            }
+            return bytes;
+        }
+
+        var k3dSource = fflate.strFromU8(
+            fflate.unzlibSync(_base64ToArrayBuffer(window.k3dCompressed))
+        );
     </script>
     <script id='requirejs'>[REQUIRE_JS]</script>
 </head>
 <body>
 <div id="canvasTarget"></div>
-
 <script>
-    var K3DInstance,
-        k3dParams = [PARAMS],
-        k3dCamera = [CAMERA];
+    var K3DInstance;
+    var data = '[DATA]';
 
     eval(k3dSource);
 
     require(['k3d'], function (lib) {
         try {
-            K3DInstance = new lib.K3D(
-                lib.ThreeJsProvider,
+            K3DInstance = new lib.CreateK3DAndLoadBinarySnapshot(
+                _base64ToArrayBuffer(data),
                 document.getElementById('canvasTarget'),
-                k3dParams
             );
+
+            K3DInstance.then(function(K3DInstance) {
+                [ADDITIONAL]
+            });
         } catch (e) {
             console.log(e);
             return;
-        }
-
-        if (K3DInstance) {
-            var data = '[DATA]';
-
-            K3DInstance.setSnapshot(atob(data)).then(function() {
-                K3DInstance.setCamera(k3dCamera);
-            });
-
-            [ADDITIONAL]
         }
     });
 </script>

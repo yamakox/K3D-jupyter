@@ -1,13 +1,12 @@
-'use strict';
-
-var THREE = require('three'),
-    threeMeshBVH = require('three-mesh-bvh');
+const THREE = require('three');
+const threeMeshBVH = require('three-mesh-bvh');
 
 require('./helpers/THREE.STLLoader')(THREE);
 require('./helpers/THREE.CopyShader')(THREE);
 require('./helpers/THREE.TrackballControls')(THREE);
 require('./helpers/THREE.OrbitControls')(THREE);
-require('./helpers/TransformControls')(THREE);
+
+THREE.TransformControls = require('./helpers/TransformControls').TransformControls;
 
 THREE.Mesh.prototype.raycast = threeMeshBVH.acceleratedRaycast;
 
@@ -39,7 +38,7 @@ module.exports = {
         Renderer: require('./initializers/Renderer'),
         Scene: require('./initializers/Scene').Init,
         Setup: require('./initializers/Setup'),
-        Manipulate: require('./initializers/Manipulate')
+        Manipulate: require('./initializers/Manipulate'),
     },
     /**
      * @namespace Objects
@@ -48,6 +47,7 @@ module.exports = {
      */
     Objects: {
         Line: require('./objects/Line'),
+        Lines: require('./objects/Lines'),
         MarchingCubes: require('./objects/MarchingCubes'),
         Mesh: require('./objects/Mesh'),
         Points: require('./objects/Points'),
@@ -66,7 +66,7 @@ module.exports = {
         Volume: require('./objects/Volume'),
         MIP: require('./objects/MIP'),
         MultiMIP: require('./objects/MultiMIP'),
-        Label: require('./objects/Label')
+        Label: require('./objects/Label'),
     },
     /**
      * @namespace Interactions
@@ -75,6 +75,8 @@ module.exports = {
      */
     Interactions: {
         Voxels: require('./interactions/Voxels'),
-        intersectCallback: require('./interactions/intersectCallback')
-    }
+        StandardCallback: require('./interactions/StandardCallback'),
+    },
+
+    THREE,
 };

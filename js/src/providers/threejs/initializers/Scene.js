@@ -1,56 +1,52 @@
-'use strict';
+const THREE = require('three');
+const _ = require('../../../lodash');
+const Text = require('../objects/Text');
+const Vectors = require('../objects/Vectors');
+const MeshLine = require('../helpers/THREE.MeshLine')(THREE);
+const {viewModes} = require('../../../core/lib/viewMode');
+const {pow10ceil} = require('../../../core/lib/helpers/math');
 
-var THREE = require('three'),
-    _ = require('./../../../lodash'),
-    Text = require('./../objects/Text'),
-    Vectors = require('./../objects/Vectors'),
-    MeshLine = require('./../helpers/THREE.MeshLine')(THREE),
-    viewModes = require('./../../../core/lib/viewMode').viewModes,
-    pow10ceil = require('./../../../core/lib/helpers/math').pow10ceil,
-    rebuildSceneDataPromises = null;
+let rebuildSceneDataPromises = null;
 
 function generateAxesHelper(K3D, axesHelper) {
-    var promises = [],
-        colors = {
-            'x': 0xff0000,
-            'y': 0x0000ff,
-            'z': 0x00ff00
-        },
-        directions = {
-            'x': [1, 0, 0],
-            'y': [0, 1, 0],
-            'z': [0, 0, 1]
-        },
-        order = {
-            'x': 0,
-            'y': 1,
-            'z': 2
-        };
+    const promises = [];
+    const colors = K3D.parameters.axesHelperColors;
+    const directions = {
+        x: [1, 0, 0],
+        y: [0, 1, 0],
+        z: [0, 0, 1],
+    };
+    const order = {
+        x: 0,
+        y: 1,
+        z: 2,
+    };
+    const labelColor = new THREE.Color(K3D.parameters.labelColor);
 
-    ['x', 'y', 'z'].forEach(function (axis) {
-        var label = new Text.create({
-            'position': new THREE.Vector3().fromArray(directions[axis]).multiplyScalar(1.1).toArray(),
-            'reference_point': 'cc',
-            'color': 0x444444,
-            'text': K3D.parameters.axes[order[axis]],
-            'size': 0.75
+    ['x', 'y', 'z'].forEach((axis, i) => {
+        const label = Text.create({
+            position: new THREE.Vector3().fromArray(directions[axis]).multiplyScalar(1.1).toArray(),
+            reference_point: 'cc',
+            color: labelColor,
+            text: K3D.parameters.axes[order[axis]],
+            size: 0.75,
         }, K3D, axesHelper);
 
-        promises.push(label.then(function (obj) {
+        promises.push(label.then((obj) => {
             axesHelper[axis] = obj;
-            axesHelper.scene.add(obj);
+            axesHelper[axis].color = colors[i];
         }));
     });
 
-    var arrows = new Vectors.create({
-        'colors': {data: [colors.x, colors.x, colors.y, colors.y, colors.z, colors.z]},
-        'origins': {data: [0, 0, 0, 0, 0, 0, 0, 0, 0]},
-        'vectors': {data: [].concat(directions.x, directions.y, directions.z)},
-        'line_width': 0.05,
-        'head_size': 2.5
+    const arrows = Vectors.create({
+        colors: {data: [colors[0], colors[0], colors[1], colors[1], colors[2], colors[2]]},
+        origins: {data: [0, 0, 0, 0, 0, 0, 0, 0, 0]},
+        vectors: {data: [].concat(directions.x, directions.y, directions.z)},
+        line_width: 0.05,
+        head_size: 2.5,
     }, K3D);
 
-    promises.push(arrows.then(function (obj) {
+    promises.push(arrows.then((obj) => {
         axesHelper.arrows = obj;
         axesHelper.scene.add(obj);
     }));
@@ -58,55 +54,43 @@ function generateAxesHelper(K3D, axesHelper) {
     return promises;
 }
 
-function ensureTwoTicksOnGrids(sceneBoundingBox, majorScale) {
-    var size = sceneBoundingBox.getSize(new THREE.Vector3());
+function getSceneBoundingBox(K3D) {
+    /* jshint validthis:true */
 
-    ['x', 'y', 'z'].forEach(function (axis) {
-        var dist = size[axis] / majorScale;
+    const sceneBoundingBox = new THREE.Box3();
+    let objectBoundingBox;
+    let world = K3D.getWorld();
 
-        if (dist <= 2.0) {
-            sceneBoundingBox.min[axis] -= (1.0 - dist / 2.0 + 0.0001) * majorScale;
-            sceneBoundingBox.max[axis] += (1.0 - dist / 2.0 + 0.0001) * majorScale;
+    Object.keys(world.ObjectsListJson).forEach(function (K3DIdentifier) {
+        let k3dObject = world.ObjectsById[K3DIdentifier];
+
+        if (!k3dObject) {
+            return
         }
-    });
-}
 
-function getSceneBoundingBox() {
-    /*jshint validthis:true */
+        k3dObject.traverse((object) => {
+            if (object && typeof (object.position.z) !== 'undefined'
+                && object.visible
+                && (object.geometry || object.boundingBox)) {
+                if (object.geometry && object.geometry.boundingBox) {
+                    objectBoundingBox = object.geometry.boundingBox.clone();
+                } else if (object.boundingBox) {
+                    objectBoundingBox = object.boundingBox.clone();
+                } else {
+                    console.log('Object without bbox');
+                    return;
+                }
 
-    var sceneBoundingBox = new THREE.Box3(),
-        objectBoundingBox;
-
-    this.K3DObjects.traverse(function (object) {
-        var isK3DObject = false,
-            ref = object;
-
-        while (ref.parent) {
-            if (ref.K3DIdentifier) {
-                isK3DObject = true;
-                break;
+                objectBoundingBox.applyMatrix4(object.matrixWorld);
+                sceneBoundingBox.union(objectBoundingBox);
             }
-
-            ref = ref.parent;
-        }
-
-        if (isK3DObject &&
-            typeof (object.position.z) !== 'undefined' &&
-            (object.geometry || object.boundingBox)) {
-
-            if (object.geometry && object.geometry.boundingBox) {
-                objectBoundingBox = object.geometry.boundingBox.clone();
-            } else if (object.boundingBox) {
-                objectBoundingBox = object.boundingBox.clone();
-            } else {
-                console.log('Object without bbox');
-                return;
-            }
-
-            objectBoundingBox.applyMatrix4(object.matrixWorld);
-            sceneBoundingBox.union(objectBoundingBox);
-        }
+        });
     });
+
+    // one point on scene?
+    if (sceneBoundingBox.getSize(new THREE.Vector3()).lengthSq() < Number.EPSILON) {
+        sceneBoundingBox.max.addScalar(0.1);
+    }
 
     return sceneBoundingBox.isEmpty() ? null : sceneBoundingBox;
 }
@@ -115,109 +99,117 @@ function generateEdgesPoints(box) {
     return {
         '-x+z': [
             new THREE.Vector3(box.min.x, box.min.y, box.max.z),
-            new THREE.Vector3(box.min.x, box.max.y, box.max.z)
+            new THREE.Vector3(box.min.x, box.max.y, box.max.z),
         ],
         '+y+z': [
             new THREE.Vector3(box.min.x, box.max.y, box.max.z),
-            box.max
+            box.max,
         ],
         '+x+z': [
             new THREE.Vector3(box.max.x, box.min.y, box.max.z),
-            box.max
+            box.max,
         ],
         '-y+z': [
             new THREE.Vector3(box.min.x, box.min.y, box.max.z),
-            new THREE.Vector3(box.max.x, box.min.y, box.max.z)
+            new THREE.Vector3(box.max.x, box.min.y, box.max.z),
         ],
         '-x-z': [
             box.min,
-            new THREE.Vector3(box.min.x, box.max.y, box.min.z)
+            new THREE.Vector3(box.min.x, box.max.y, box.min.z),
         ],
         '+y-z': [
             new THREE.Vector3(box.min.x, box.max.y, box.min.z),
-            new THREE.Vector3(box.max.x, box.max.y, box.min.z)
+            new THREE.Vector3(box.max.x, box.max.y, box.min.z),
         ],
         '+x-z': [
             new THREE.Vector3(box.max.x, box.min.y, box.min.z),
-            new THREE.Vector3(box.max.x, box.max.y, box.min.z)
+            new THREE.Vector3(box.max.x, box.max.y, box.min.z),
         ],
         '-y-z': [
             box.min,
-            new THREE.Vector3(box.max.x, box.min.y, box.min.z)
+            new THREE.Vector3(box.max.x, box.min.y, box.min.z),
         ],
         '-x+y': [
             new THREE.Vector3(box.min.x, box.max.y, box.min.z),
-            new THREE.Vector3(box.min.x, box.max.y, box.max.z)
+            new THREE.Vector3(box.min.x, box.max.y, box.max.z),
         ],
         '-x-y': [
             box.min,
-            new THREE.Vector3(box.min.x, box.min.y, box.max.z)
+            new THREE.Vector3(box.min.x, box.min.y, box.max.z),
         ],
         '+x+y': [
             new THREE.Vector3(box.max.x, box.max.y, box.min.z),
-            box.max
+            box.max,
         ],
         '+x-y': [
             new THREE.Vector3(box.max.x, box.min.y, box.min.z),
-            new THREE.Vector3(box.max.x, box.min.y, box.max.z)
-        ]
+            new THREE.Vector3(box.max.x, box.min.y, box.max.z),
+        ],
     };
 }
 
 function cleanup(grids, gridScene) {
-    Object.keys(grids.planes).forEach(function (axis) {
-        grids.planes[axis].forEach(function (plane) {
+    Object.keys(grids.planes).forEach((axis) => {
+        grids.planes[axis].forEach((plane) => {
             gridScene.remove(plane.obj);
             delete plane.obj;
         });
     });
 
-    Object.keys(grids.labelsOnEdges).forEach(function (key) {
-        grids.labelsOnEdges[key].labels.forEach(function (label) {
+    Object.keys(grids.labelsOnEdges).forEach((key) => {
+        grids.labelsOnEdges[key].labels.forEach((label) => {
             label.onRemove();
         });
     });
 }
 
 function rebuildSceneData(K3D, grids, axesHelper, force) {
-    /*jshint validthis:true, maxstatements:false */
-    var that = this;
+    /* jshint validthis:true, maxstatements:false */
+    const that = this;
 
     if (rebuildSceneDataPromises) {
-        return Promise.all(rebuildSceneDataPromises).then(function () {
-            return rebuildSceneData.bind(that)(K3D, grids, axesHelper, force);
-        });
+        return Promise.all(rebuildSceneDataPromises).then(() => rebuildSceneData.bind(that)(
+            K3D,
+            grids,
+            axesHelper,
+            force,
+        ));
     }
 
-    var promises = [],
-        fullSceneBoundingBox,
-        fullSceneDiameter,
-        originalEdges,
-        updateAxesHelper,
-        extendedEdges,
-        size,
-        majorScale,
-        minorScale,
-        camDistance,
-        sceneBoundingBox = new THREE.Box3().setFromArray(K3D.parameters.grid),
-        extendedSceneBoundingBox,
-        unitVectors = {
-            'x': new THREE.Vector3(1.0, 0.0, 0.0),
-            'y': new THREE.Vector3(0.0, 1.0, 0.0),
-            'z': new THREE.Vector3(0.0, 0.0, 1.0)
-        };
+    const promises = [];
+    let originalEdges;
+    let updateAxesHelper;
+    let extendedEdges;
+    let size;
+    let majorScale;
+    let minorScale;
+    let sceneBoundingBox = new THREE.Box3().setFromArray(K3D.parameters.grid);
+    let extendedSceneBoundingBox;
+    const unitVectors = {
+        x: new THREE.Vector3(1.0, 0.0, 0.0),
+        y: new THREE.Vector3(0.0, 1.0, 0.0),
+        z: new THREE.Vector3(0.0, 0.0, 1.0),
+    };
+    const gridColor = new THREE.Color(K3D.parameters.gridColor);
+    const labelColor = new THREE.Color(K3D.parameters.labelColor);
 
     // axes Helper
     updateAxesHelper = !K3D.parameters.axesHelper || (K3D.parameters.axesHelper && !axesHelper.x);
 
     if (axesHelper.x && !updateAxesHelper) {
-        updateAxesHelper |= K3D.parameters.axes[0] !== axesHelper.x.text ||
-                            K3D.parameters.axes[1] !== axesHelper.y.text ||
-                            K3D.parameters.axes[2] !== axesHelper.z.text;
+        // has axes labels changed?
+        updateAxesHelper |= K3D.parameters.axes[0] !== axesHelper.x.text
+            || K3D.parameters.axes[1] !== axesHelper.y.text
+            || K3D.parameters.axes[2] !== axesHelper.z.text;
+
+        // has axes colors changed?
+        updateAxesHelper |= K3D.parameters.axesHelperColors[0] !== axesHelper.x.color
+            || K3D.parameters.axesHelperColors[1] !== axesHelper.y.color
+            || K3D.parameters.axesHelperColors[2] !== axesHelper.z.color;
     }
 
     if (updateAxesHelper) {
-        ['x', 'y', 'z'].forEach(function (axis) {
+        ['x', 'y', 'z'].forEach((axis) => {
             if (axesHelper[axis]) {
                 axesHelper[axis].onRemove();
                 axesHelper.scene.remove(axesHelper[axis]);
@@ -231,15 +223,17 @@ function rebuildSceneData(K3D, grids, axesHelper, force) {
         }
     }
 
-    if (updateAxesHelper) {
-        if (K3D.parameters.axesHelper > 1) {
-            axesHelper.width = axesHelper.height = K3D.parameters.axesHelper;
-        } else if (K3D.parameters.axesHelper > 0) {
-            axesHelper.width = axesHelper.height = 100;
-        }
+    if (K3D.parameters.axesHelper > 1) {
+        axesHelper.width = K3D.parameters.axesHelper;
+        axesHelper.height = K3D.parameters.axesHelper;
+    } else if (K3D.parameters.axesHelper > 0) {
+        axesHelper.width = 100;
+        axesHelper.height = 100;
+    }
 
+    if (updateAxesHelper) {
         if (K3D.parameters.axesHelper > 0) {
-            generateAxesHelper(K3D, axesHelper).forEach(function (p) {
+            generateAxesHelper(K3D, axesHelper).forEach((p) => {
                 promises.push(p);
             });
         }
@@ -258,54 +252,62 @@ function rebuildSceneData(K3D, grids, axesHelper, force) {
         majorScale = pow10ceil(Math.max(size.x, size.y, size.z)) / 10.0;
         minorScale = majorScale / 10.0;
 
-        ensureTwoTicksOnGrids(sceneBoundingBox, majorScale);
+        ['x', 'y', 'z'].forEach((axis) => {
+            if (sceneBoundingBox.min[axis] === sceneBoundingBox.max[axis]) {
+                sceneBoundingBox.min[axis] -= majorScale / 2.0;
+                sceneBoundingBox.max[axis] += majorScale / 2.0;
+            }
+        });
+        size = sceneBoundingBox.getSize(new THREE.Vector3());
 
         sceneBoundingBox.min = new THREE.Vector3(
             Math.floor(sceneBoundingBox.min.x / majorScale) * majorScale,
             Math.floor(sceneBoundingBox.min.y / majorScale) * majorScale,
-            Math.floor(sceneBoundingBox.min.z / majorScale) * majorScale);
+            Math.floor(sceneBoundingBox.min.z / majorScale) * majorScale,
+        );
 
         sceneBoundingBox.max = new THREE.Vector3(
             Math.ceil(sceneBoundingBox.max.x / majorScale) * majorScale,
             Math.ceil(sceneBoundingBox.max.y / majorScale) * majorScale,
-            Math.ceil(sceneBoundingBox.max.z / majorScale) * majorScale);
+            Math.ceil(sceneBoundingBox.max.z / majorScale) * majorScale,
+        );
 
         size = sceneBoundingBox.getSize(new THREE.Vector3());
 
         grids.planes = {
-            'x': [
+            x: [
                 {
                     normal: new THREE.Vector3(-1.0, 0.0, 0.0),
                     p1: new THREE.Vector3(sceneBoundingBox.max.x, sceneBoundingBox.min.y, sceneBoundingBox.min.z),
-                    p2: sceneBoundingBox.max
+                    p2: sceneBoundingBox.max,
                 },
                 {
                     normal: new THREE.Vector3(1.0, 0.0, 0.0),
                     p1: sceneBoundingBox.min,
-                    p2: new THREE.Vector3(sceneBoundingBox.min.x, sceneBoundingBox.max.y, sceneBoundingBox.max.z)
+                    p2: new THREE.Vector3(sceneBoundingBox.min.x, sceneBoundingBox.max.y, sceneBoundingBox.max.z),
                 }],
-            'y': [
+            y: [
                 {
                     normal: new THREE.Vector3(0.0, -1.0, 0.0),
                     p1: new THREE.Vector3(sceneBoundingBox.min.x, sceneBoundingBox.max.y, sceneBoundingBox.min.z),
-                    p2: sceneBoundingBox.max
+                    p2: sceneBoundingBox.max,
                 },
                 {
                     normal: new THREE.Vector3(0.0, 1.0, 0.0),
                     p1: sceneBoundingBox.min,
-                    p2: new THREE.Vector3(sceneBoundingBox.max.x, sceneBoundingBox.min.y, sceneBoundingBox.max.z)
+                    p2: new THREE.Vector3(sceneBoundingBox.max.x, sceneBoundingBox.min.y, sceneBoundingBox.max.z),
                 }],
-            'z': [
+            z: [
                 {
                     normal: new THREE.Vector3(0.0, 0.0, -1.0),
                     p1: new THREE.Vector3(sceneBoundingBox.min.x, sceneBoundingBox.min.y, sceneBoundingBox.max.z),
-                    p2: sceneBoundingBox.max
+                    p2: sceneBoundingBox.max,
                 },
                 {
                     normal: new THREE.Vector3(0.0, 0.0, 1.0),
                     p1: sceneBoundingBox.min,
-                    p2: new THREE.Vector3(sceneBoundingBox.max.x, sceneBoundingBox.max.y, sceneBoundingBox.min.z)
-                }]
+                    p2: new THREE.Vector3(sceneBoundingBox.max.x, sceneBoundingBox.max.y, sceneBoundingBox.min.z),
+                }],
         };
 
         // expand sceneBoundingBox to avoid labels overlapping
@@ -314,7 +316,7 @@ function rebuildSceneData(K3D, grids, axesHelper, force) {
         originalEdges = generateEdgesPoints(sceneBoundingBox);
         extendedEdges = generateEdgesPoints(extendedSceneBoundingBox);
 
-        Object.keys(originalEdges).forEach(function (key) {
+        Object.keys(originalEdges).forEach((key) => {
             grids.labelsOnEdges[key] = {};
             grids.labelsOnEdges[key].v = originalEdges[key];
             grids.labelsOnEdges[key].p = extendedEdges[key];
@@ -322,62 +324,73 @@ function rebuildSceneData(K3D, grids, axesHelper, force) {
         });
 
         // create labels
-        Object.keys(grids.labelsOnEdges).forEach(function (key) {
-            var iterateAxis = _.difference(['x', 'y', 'z'], key.replace(/[^xyz]/g, '').split(''))[0],
-                iterationCount = size[iterateAxis] / majorScale,
-                deltaValue = unitVectors[iterateAxis].clone().multiplyScalar(majorScale),
+        Object.keys(grids.labelsOnEdges).forEach((key) => {
+            const iterateAxis = _.difference(['x', 'y', 'z'], key.replace(/[^xyz]/g, '').split(''))[0];
+            let iterationCount = size[iterateAxis] / majorScale;
+
+            let deltaValue = unitVectors[iterateAxis].clone().multiplyScalar(majorScale);
+            let deltaPosition = unitVectors[iterateAxis].clone().multiplyScalar(
+                grids.labelsOnEdges[key].p[0].distanceTo(grids.labelsOnEdges[key].p[1]) / iterationCount,
+            );
+            let j;
+            let v;
+            let p;
+            let label;
+
+            if (iterationCount <= 2) {
+                const originalIterationCount = iterationCount;
+
+                iterationCount = originalIterationCount * 5;
+                deltaValue = unitVectors[iterateAxis].clone()
+                    .multiplyScalar((originalIterationCount * majorScale) / iterationCount);
                 deltaPosition = unitVectors[iterateAxis].clone().multiplyScalar(
-                    grids.labelsOnEdges[key].p[0].distanceTo(grids.labelsOnEdges[key].p[1]) / iterationCount
-                ),
-                j, v, p,
-                label,
-                middleValue, middlePosition, middle, axisLabel;
+                    grids.labelsOnEdges[key].p[0].distanceTo(grids.labelsOnEdges[key].p[1]) / iterationCount,
+                );
+            }
 
             for (j = 1; j <= iterationCount - 1; j++) {
-
                 v = grids.labelsOnEdges[key].v[0].clone().add(deltaValue.clone().multiplyScalar(j));
                 p = grids.labelsOnEdges[key].p[0].clone().add(deltaPosition.clone().multiplyScalar(j));
 
-
-                label = new Text.create({
-                    'position': p.toArray(),
-                    'reference_point': 'cc',
-                    'color': 0x444444,
-                    'text': parseFloat((v[iterateAxis]).toFixed(15)).toString(),
-                    'size': 0.75
+                label = Text.create({
+                    position: p.toArray(),
+                    reference_point: 'cc',
+                    color: labelColor,
+                    text: parseFloat((v[iterateAxis]).toFixed(15)).toString(),
+                    size: 0.75,
                 }, K3D);
 
-                /*jshint loopfunc: true */
-                promises.push(label.then(function (obj) {
+                /* jshint loopfunc: true */
+                promises.push(label.then((obj) => {
                     grids.labelsOnEdges[key].labels.push(obj);
                 }));
-                /*jshint loopfunc: false */
+                /* jshint loopfunc: false */
             }
 
             // add axis label
-            middleValue = grids.labelsOnEdges[key].v[0].clone().add(
+            const middleValue = grids.labelsOnEdges[key].v[0].clone().add(
                 (new THREE.Vector3()).subVectors(grids.labelsOnEdges[key].v[1], grids.labelsOnEdges[key].v[0])
-                    .multiplyScalar(0.5)
+                    .multiplyScalar(0.5),
             );
 
-            middlePosition = grids.labelsOnEdges[key].p[0].clone().add(
+            const middlePosition = grids.labelsOnEdges[key].p[0].clone().add(
                 (new THREE.Vector3()).subVectors(grids.labelsOnEdges[key].p[1], grids.labelsOnEdges[key].p[0])
-                    .multiplyScalar(0.5)
+                    .multiplyScalar(0.5),
             );
 
-            middle = middlePosition.add(
-                (new THREE.Vector3()).subVectors(middlePosition, middleValue).multiplyScalar(2.0)
+            const middle = middlePosition.add(
+                (new THREE.Vector3()).subVectors(middlePosition, middleValue).multiplyScalar(2.0),
             );
 
-            axisLabel = new Text.create({
-                'position': middle.toArray(),
-                'reference_point': 'cc',
-                'color': 0x444444,
-                'text': K3D.parameters.axes[['x', 'y', 'z'].indexOf(iterateAxis)],
-                'size': 1.0
+            const axisLabel = Text.create({
+                position: middle.toArray(),
+                reference_point: 'cc',
+                color: labelColor,
+                text: K3D.parameters.axes[['x', 'y', 'z'].indexOf(iterateAxis)],
+                size: 1.0,
             }, K3D);
 
-            axisLabel.then(function (obj) {
+            axisLabel.then((obj) => {
                 grids.labelsOnEdges[key].labels.push(obj);
             });
         });
@@ -385,24 +398,26 @@ function rebuildSceneData(K3D, grids, axesHelper, force) {
         // create grids
         Object.keys(grids.planes).forEach(function (axis) {
             grids.planes[axis].forEach(function (plane) {
-                var vertices = [], widths = [], colors = [],
-                    iterableAxes = ['x', 'y', 'z'].filter(function (val) {
-                        return val !== axis;
-                    }),
-                    line = new MeshLine.MeshLine(),
-                    material = new MeshLine.MeshLineMaterial({
-                        color: new THREE.Color(1.0, 1.0, 1.0),
-                        opacity: 0.75,
-                        sizeAttenuation: true,
-                        transparent: true,
-                        lineWidth: minorScale * 0.05,
-                        resolution: new THREE.Vector2(K3D.getWorld().width, K3D.getWorld().height),
-                        side: THREE.DoubleSide
-                    });
+                let vertices = [];
+                const widths = [];
+                const colors = [];
+                const iterableAxes = ['x', 'y', 'z'].filter((val) => val !== axis);
+                const line = new MeshLine.MeshLine();
+                const material = new MeshLine.MeshLineMaterial({
+                    color: new THREE.Color(1.0, 1.0, 1.0),
+                    opacity: 0.75,
+                    sizeAttenuation: true,
+                    transparent: true,
+                    lineWidth: minorScale * 0.05,
+                    resolution: new THREE.Vector2(K3D.getWorld().width, K3D.getWorld().height),
+                    side: THREE.DoubleSide,
+                });
 
-                iterableAxes.forEach(function (iterateAxis) {
-                    var delta = unitVectors[iterateAxis].clone().multiplyScalar(minorScale),
-                        p1, p2, j;
+                iterableAxes.forEach((iterateAxis) => {
+                    const delta = unitVectors[iterateAxis].clone().multiplyScalar(minorScale);
+                    let p1;
+                    let p2;
+                    let j;
 
                     for (j = 0; j <= size[iterateAxis] / minorScale; j++) {
                         p1 = plane.p1.clone().add(delta.clone().multiplyScalar(j));
@@ -413,12 +428,12 @@ function rebuildSceneData(K3D, grids, axesHelper, force) {
 
                         if (j % 10 === 0) {
                             widths.push(1.5, 1.5);
-                            colors.push(0.65, 0.65, 0.65);
-                            colors.push(0.65, 0.65, 0.65);
+                            colors.push(gridColor.r * 0.72, gridColor.g * 0.72, gridColor.b * 0.72);
+                            colors.push(gridColor.r * 0.72, gridColor.g * 0.72, gridColor.b * 0.72);
                         } else {
                             widths.push(1.0, 1.0);
-                            colors.push(0.9, 0.9, 0.9);
-                            colors.push(0.9, 0.9, 0.9);
+                            colors.push(gridColor.r, gridColor.g, gridColor.b);
+                            colors.push(gridColor.r, gridColor.g, gridColor.b);
                         }
                     }
                 }, this);
@@ -435,16 +450,16 @@ function rebuildSceneData(K3D, grids, axesHelper, force) {
     }
 
     // Dynamic setting far clipping plane
-    fullSceneBoundingBox = sceneBoundingBox.clone();
+    const fullSceneBoundingBox = sceneBoundingBox.clone();
     Object.keys(grids.planes).forEach(function (axis) {
-        grids.planes[axis].forEach(function (plane) {
+        grids.planes[axis].forEach((plane) => {
             fullSceneBoundingBox.union(plane.obj.geometry.boundingBox.clone());
         }, this);
     }, this);
 
-    fullSceneDiameter = fullSceneBoundingBox.getSize(new THREE.Vector3()).length();
+    const fullSceneDiameter = fullSceneBoundingBox.getSize(new THREE.Vector3()).length();
 
-    camDistance = (fullSceneDiameter / 2.0) / Math.sin(THREE.Math.degToRad(K3D.parameters.camera_fov / 2.0));
+    const camDistance = (fullSceneDiameter / 2.0) / Math.sin(THREE.Math.degToRad(K3D.parameters.cameraFov / 2.0));
 
     this.camera.far = (camDistance + fullSceneDiameter / 2) * 5.0;
     this.camera.near = fullSceneDiameter * 0.0001;
@@ -452,40 +467,40 @@ function rebuildSceneData(K3D, grids, axesHelper, force) {
 
     rebuildSceneDataPromises = promises;
 
-    return Promise.all(promises).then(function (v) {
+    return Promise.all(promises).then((v) => {
         rebuildSceneDataPromises = null;
         return v;
     });
 }
 
 function refreshGrid(K3D, grids) {
-    /*jshint validthis:true */
-    var visiblePlanes = [],
-        cameraDirection = new THREE.Vector3();
+    /* jshint validthis:true */
+    const visiblePlanes = [];
+    const cameraDirection = new THREE.Vector3();
 
     this.camera.getWorldDirection(cameraDirection);
 
-    Object.keys(grids.planes).forEach(function (axis) {
-        var dot1 = grids.planes[axis][0].normal.dot(cameraDirection),
-            dot2 = grids.planes[axis][1].normal.dot(cameraDirection);
+    Object.keys(grids.planes).forEach((axis) => {
+        const dot1 = grids.planes[axis][0].normal.dot(cameraDirection);
+        const dot2 = grids.planes[axis][1].normal.dot(cameraDirection);
 
         grids.planes[axis][0].obj.visible = dot1 <= dot2 && K3D.parameters.gridVisible;
         grids.planes[axis][1].obj.visible = dot1 > dot2 && K3D.parameters.gridVisible;
 
         if (grids.planes[axis][0].obj.visible) {
-            visiblePlanes.push('+' + axis);
+            visiblePlanes.push(`+${axis}`);
         }
 
         if (grids.planes[axis][1].obj.visible) {
-            visiblePlanes.push('-' + axis);
+            visiblePlanes.push(`-${axis}`);
         }
     }, this);
 
-    Object.keys(grids.labelsOnEdges).forEach(function (key) {
-        var axes = key.match(/.{2}/g),
-            shouldBeVisible = _.intersection(axes, visiblePlanes).length === 1;
+    Object.keys(grids.labelsOnEdges).forEach((key) => {
+        const axes = key.match(/.{2}/g);
+        const shouldBeVisible = _.intersection(axes, visiblePlanes).length === 1;
 
-        grids.labelsOnEdges[key].labels.forEach(function (label) {
+        grids.labelsOnEdges[key].labels.forEach((label) => {
             if (shouldBeVisible && K3D.parameters.gridVisible) {
                 label.show();
             } else {
@@ -496,15 +511,19 @@ function refreshGrid(K3D, grids) {
 }
 
 function raycast(K3D, x, y, camera, click, viewMode) {
-    /*jshint validthis:true */
-    var meshes = [],
-        intersect,
-        needRender = false;
+    /* jshint validthis:true */
+    const meshes = [];
+    let intersect;
+    let needRender = false;
 
     this.raycaster.setFromCamera(new THREE.Vector2(x, y), camera);
 
-    this.K3DObjects.traverse(function (object) {
+    this.K3DObjects.traverse((object) => {
         if (object.interactions) {
+            if (object.geometry && object.geometry.attributes.position.count === 0) {
+                return;
+            }
+
             meshes.push(object);
         }
     });
@@ -516,14 +535,12 @@ function raycast(K3D, x, y, camera, click, viewMode) {
             intersect = intersect[0];
             K3D.getWorld().targetDOMNode.style.cursor = 'pointer';
 
-            if (intersect.object.interactions && intersect.object.interactions.onHover) {
+            if (!click && intersect.object.interactions && intersect.object.interactions.onHover) {
                 needRender |= intersect.object.interactions.onHover(intersect, viewMode);
             }
 
-            if (click) {
-                if (intersect.object.interactions && intersect.object.interactions.onClick) {
-                    needRender |= intersect.object.interactions.onClick(intersect, viewMode);
-                }
+            if (click && intersect.object.interactions && intersect.object.interactions.onClick) {
+                needRender |= intersect.object.interactions.onClick(intersect, viewMode);
             }
         } else {
             K3D.getWorld().targetDOMNode.style.cursor = 'auto';
@@ -540,20 +557,20 @@ function raycast(K3D, x, y, camera, click, viewMode) {
  * @memberof K3D.Providers.ThreeJS.Initializers
  */
 module.exports = {
-    Init: function (K3D) {
-        var initialLightIntensity = {
-                ambient: 0.2,
-                key: 0.4,
-                head: 0.15,
-                fill: 0.15,
-                back: 0.1
-            },
-            ambientLight = new THREE.AmbientLight(0xffffff),
-            grids = {
-                planes: {},
-                labelsOnEdges: {}
-            },
-            self = this;
+    Init(K3D) {
+        const initialLightIntensity = {
+            ambient: 0.2,
+            key: 0.4,
+            head: 0.15,
+            fill: 0.15,
+            back: 0.1,
+        };
+        const ambientLight = new THREE.AmbientLight(0xffffff);
+        const grids = {
+            planes: {},
+            labelsOnEdges: {},
+        };
+        const self = this;
 
         this.lights = [];
         this.raycaster = new THREE.Raycaster();
@@ -576,10 +593,10 @@ module.exports = {
         // intensity of the fill, back and headlights are set as a ratio to the key light brightness. Thus, the
         // brightness of all the lights in the scene can be changed by changing the key light intensity.
 
-        this.keyLight = new THREE.DirectionalLight(0xffffff);  //key
-        this.headLight = new THREE.DirectionalLight(0xffffff); //head
-        this.fillLight = new THREE.DirectionalLight(0xffffff); //fill
-        this.backLight = new THREE.DirectionalLight(0xffffff); //back
+        this.keyLight = new THREE.DirectionalLight(0xffffff); // key
+        this.headLight = new THREE.DirectionalLight(0xffffff); // head
+        this.fillLight = new THREE.DirectionalLight(0xffffff); // fill
+        this.backLight = new THREE.DirectionalLight(0xffffff); // back
 
         this.keyLight.position.set(0.25, 1, 1.0);
         this.headLight.position.set(0, 0, 1);
@@ -592,7 +609,7 @@ module.exports = {
         this.axesHelper.scene = new THREE.Scene();
         this.K3DObjects = new THREE.Group();
 
-        [this.keyLight, this.headLight, this.fillLight, this.backLight].forEach(function (light) {
+        [this.keyLight, this.headLight, this.fillLight, this.backLight].forEach((light) => {
             self.camera.add(light);
             self.camera.add(light.target);
             // self.scene.add(new THREE.DirectionalLightHelper(light, 1.0, 0xff0000));
@@ -605,11 +622,10 @@ module.exports = {
         this.cleanup = cleanup.bind(this, grids, this.gridScene);
 
         K3D.rebuildSceneData = rebuildSceneData.bind(this, K3D, grids, this.axesHelper);
-        K3D.getSceneBoundingBox = getSceneBoundingBox.bind(this);
+        K3D.getSceneBoundingBox = getSceneBoundingBox.bind(this, K3D);
         K3D.refreshGrid = refreshGrid.bind(this, K3D, grids);
 
-
-        K3D.rebuildSceneData().then(function () {
+        K3D.rebuildSceneData().then(() => {
             K3D.refreshGrid();
             K3D.render();
         });
@@ -626,23 +642,25 @@ module.exports = {
             self.fillLight.intensity = initialLightIntensity.fill * value;
             self.backLight.intensity = initialLightIntensity.back * value;
 
-            self.backLight.visible = self.headLight.visible = self.fillLight.visible = self.backLight.visible =
-                value > 0.0;
+            self.backLight.visible = value > 0.0;
+            self.headLight.visible = value > 0.0;
+            self.fillLight.visible = value > 0.0;
+            self.backLight.visible = value > 0.0;
         };
 
-        K3D.on(K3D.events.MOUSE_MOVE, function (coord) {
+        K3D.on(K3D.events.MOUSE_MOVE, (coord) => {
             if (K3D.parameters.viewMode !== viewModes.view) {
-                if (raycast.call(self, K3D, coord.x, coord.y, self.camera, false, K3D.parameters.viewMode) &&
-                    !K3D.autoRendering) {
+                if (raycast.call(self, K3D, coord.x, coord.y, self.camera, false, K3D.parameters.viewMode)
+                    && !K3D.autoRendering) {
                     K3D.render();
                 }
             }
         });
 
-        K3D.on(K3D.events.MOUSE_CLICK, function (coord) {
+        K3D.on(K3D.events.MOUSE_CLICK, (coord) => {
             if (K3D.parameters.viewMode !== viewModes.view) {
-                if (raycast.call(self, K3D, coord.x, coord.y, self.camera, true, K3D.parameters.viewMode) &&
-                    !K3D.autoRendering) {
+                if (raycast.call(self, K3D, coord.x, coord.y, self.camera, true, K3D.parameters.viewMode)
+                    && !K3D.autoRendering) {
                     K3D.render();
                 }
             }
@@ -651,13 +669,13 @@ module.exports = {
         K3D.on(K3D.events.RESIZED, function () {
             // update outlines
             Object.keys(grids.planes).forEach(function (axis) {
-                grids.planes[axis].forEach(function (plane) {
-                    var objResolution = plane.obj.material.uniforms.resolution;
+                grids.planes[axis].forEach((plane) => {
+                    const objResolution = plane.obj.material.uniforms.resolution;
 
                     objResolution.value.x = K3D.getWorld().width;
                     objResolution.value.y = K3D.getWorld().height;
                 }, this);
             }, this);
         });
-    }
+    },
 };

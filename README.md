@@ -2,12 +2,13 @@
 
 [![Downloads](https://pepy.tech/badge/k3d)](https://pepy.tech/project/k3d)
 [![Anaconda-Server Badge](https://anaconda.org/conda-forge/k3d/badges/downloads.svg)](https://anaconda.org/conda-forge/k3d)
-[![Build Status](https://travis-ci.org/K3D-tools/K3D-jupyter.svg)](https://travis-ci.org/K3D-tools/K3D-jupyter)
-[![Total Alerts](https://img.shields.io/lgtm/alerts/g/K3D-tools/K3D-jupyter.svg?logo=lgtm&logoWidth=18)](https://lgtm.com/projects/g/K3D-tools/K3D-jupyter/alerts/)
-[![Language Grade: JavaScript](https://img.shields.io/lgtm/grade/javascript/g/K3D-tools/K3D-jupyter.svg?logo=lgtm&logoWidth=18)](https://lgtm.com/projects/g/K3D-tools/K3D-jupyter/context:javascript)
-[![Language Grade: Python](https://img.shields.io/lgtm/grade/python/g/K3D-tools/K3D-jupyter.svg?logo=lgtm&logoWidth=18)](https://lgtm.com/projects/g/K3D-tools/K3D-jupyter/context:python)
+[![CodeQL](https://github.com/K3D-tools/K3D-jupyter/workflows/CodeQL/badge.svg)](https://github.com/K3D-tools/K3D-jupyter/actions)
 
 Jupyter notebook extension for 3D visualization.
+
+Documentation: [https://k3d-jupyter.org](https://k3d-jupyter.org)
+
+#### Showcase:
 
 ![points_cloud](imgs/points_cloud.gif)
 
@@ -19,22 +20,20 @@ Jupyter notebook extension for 3D visualization.
 
 #### YouTube:
 
-[![Volume renderer](https://img.youtube.com/vi/zCeQ_ZXy_Ps/0.jpg)](https://www.youtube.com/watch?v=zCeQ_ZXy_Ps)
+[![Volume renderer](https://i3.ytimg.com/vi/zCeQ_ZXy_Ps/maxresdefault.jpg)](https://www.youtube.com/watch?v=zCeQ_ZXy_Ps)
 
-[![Volume renderer](https://img.youtube.com/vi/9evYSq3ieVs/0.jpg)](https://www.youtube.com/watch?v=9evYSq3ieVs)
+[![Volume renderer](https://i3.ytimg.com/vi/9evYSq3ieVs/maxresdefault.jpg)](https://www.youtube.com/watch?v=9evYSq3ieVs)
 
-[![Volume renderer](https://img.youtube.com/vi/DbCiauTuJrU/0.jpg)](https://www.youtube.com/watch?v=DbCiauTuJrU)
+[![Volume renderer](https://i3.ytimg.com/vi/DbCiauTuJrU/maxresdefault.jpg)](https://www.youtube.com/watch?v=DbCiauTuJrU)
 
-[![Volume renderer](https://img.youtube.com/vi/wIbBpUlB5vc/0.jpg)](https://www.youtube.com/watch?v=wIbBpUlB5vc)
+[![Volume renderer](https://i3.ytimg.com/vi/wIbBpUlB5vc/maxresdefault.jpg)](https://www.youtube.com/watch?v=wIbBpUlB5vc)
 
 
 ## Try it Now!
 
-Watch: [Interactive showcase gallery](https://k3d-jupyter.org/showcase/index.html)
+Watch: [Interactive showcase gallery](https://k3d-jupyter.org/gallery/index.html)
 
-Documentation: [https://k3d-jupyter.org](https://k3d-jupyter.org)
-
-Jupyter version: [![Binder](https://mybinder.org/badge.svg)](https://mybinder.org/v2/gh/K3D-tools/K3D-jupyter/master?filepath=index.ipynb)
+Jupyter version: [![Binder](https://mybinder.org/badge.svg)](https://mybinder.org/v2/gh/K3D-tools/K3D-jupyter/main?filepath=index.ipynb)
 
 ## Installation
 
@@ -74,38 +73,28 @@ Then, if required, JupyterLab installation:
 
     $ jupyter labextension install ./js
 
-### JupyterLab
-
-Then, if required, JupyterLab installation:
-
-*Note: do not run this command inside K3D-jupyter directory.*
-
-    $ jupyter labextension install @jupyter-widgets/jupyterlab-manager
-    $ jupyter labextension install k3d
-
-Please notice that support for jupyterLab is still experimental.
-
-### Developer's How To
-
-Please make sure to take a look at the [HOW-TO.md](HOW-TO.md) document.
-
 ### Code of Conduct
 K3D-jupyter follows the Python Software Foundation Code of Conduct in everything we do.
 
+## Kudos
 
+- Travis is ❤️
+- OpenDreamKit is 🚀
+- Three.js is 🥇
 
 ## Acknowledgments
 
 <table class="none">
 <tr>
 <td>
-  <img src="http://opendreamkit.org/public/logos/Flag_of_Europe.svg" width="128">
+<img src="http://opendreamkit.org/public/logos/Flag_of_Europe.svg" width="128">
 </td>
 <td>
-  This package was created as part of the Horizon 2020 European
-  Research Infrastructure project
-  <a href="https://opendreamkit.org/">OpenDreamKit</a>
-  (grant agreement <a href="https://opendreamkit.org/">#676541</a>).
+Research Infrastructure project
+This package was created as part of the Horizon 2020 European
+<a href="https://opendreamkit.org/">OpenDreamKit</a>
+(grant agreement <a href="https://opendreamkit.org/">#676541</a>).
 </td>
 </tr>
 </table>
+

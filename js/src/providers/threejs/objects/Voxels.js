@@ -1,8 +1,6 @@
-'use strict';
-
-var VoxelsHelper = require('./../helpers/Voxels'),
-    areAllChangesResolve = require('./../helpers/Fn').areAllChangesResolve,
-    commonUpdate = require('./../helpers/Fn').commonUpdate;
+const VoxelsHelper = require('../helpers/Voxels');
+const {areAllChangesResolve} = require('../helpers/Fn');
+const {commonUpdate} = require('../helpers/Fn');
 
 /**
  * Loader strategy to handle SparseVoxels object
@@ -12,24 +10,40 @@ var VoxelsHelper = require('./../helpers/Voxels'),
  * @param {Object} K3D
  */
 module.exports = {
-    create: function (config, K3D) {
+    create(config, K3D) {
         return VoxelsHelper.create(
             config,
-            VoxelsHelper.generateRegularChunks(27, config.voxels.shape, config.voxels.data),
+            VoxelsHelper.generateRegularChunks(96, config.voxels.shape, config.voxels.data),
             [config.voxels.shape[2], config.voxels.shape[1], config.voxels.shape[0]],
-            K3D
+            K3D,
         );
     },
 
-    update: function (config, changes, obj) {
-        var resolvedChanges = {};
+    update(config, changes, obj, K3D) {
+        const resolvedChanges = {};
 
-        commonUpdate(config, changes, resolvedChanges, obj);
+        if (typeof (changes.opacity) !== 'undefined' && !changes.opacity.timeSeries) {
+            obj.traverse((object) => {
+                if (object.material) {
+                    if (object.material.userData.outline) {
+                        object.material.uniforms.opacity.value = config.opacity * 0.75;
+                        object.material.opacity = object.material.uniforms.opacity.value;
+                    } else {
+                        object.material.opacity = config.opacity;
+                        object.material.depthWrite = config.opacity === 1.0;
+                        object.material.transparent = config.opacity !== 1.0;
+                    }
+                }
+            });
+
+            resolvedChanges.opacity = null;
+        }
+
+        commonUpdate(config, changes, resolvedChanges, obj, K3D);
 
         if (areAllChangesResolve(changes, resolvedChanges)) {
-            return Promise.resolve({json: config, obj: obj});
-        } else {
-            return false;
+            return Promise.resolve({json: config, obj});
         }
-    }
+        return false;
+    },
 };

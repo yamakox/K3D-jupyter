@@ -1,8 +1,9 @@
-'use strict';
+const THREE = require('three');
+let katex = require('katex');
+const {areAllChangesResolve} = require('../helpers/Fn');
 
-var THREE = require('three'),
-    katex = require('katex'),
-    areAllChangesResolve = require('./../helpers/Fn').areAllChangesResolve;
+
+katex = katex.default || katex;
 
 /**
  * Loader strategy to handle LaTex object
@@ -13,117 +14,160 @@ var THREE = require('three'),
  * @return {Object} 3D object ready to render
  */
 module.exports = {
-    create: function (config, K3D) {
+    create(config, K3D) {
         config.visible = typeof (config.visible) !== 'undefined' ? config.visible : true;
         config.color = typeof (config.color) !== 'undefined' ? config.color : 0;
 
-        var text = config.text || '\\KaTeX',
-            color = config.color,
-            referencePoint = config.reference_point || 'lb',
-            position = config.position,
-            size = config.size || 1,
-            object = new THREE.Object3D(),
-            domElement = document.createElement('div'),
-            overlayDOMNode = K3D.getWorld().overlayDOMNode,
-            listenersId,
-            world = K3D.getWorld();
+        const text = config.text || '\\KaTeX';
+        const {color} = config;
+        const referencePoint = config.reference_point || 'lb';
+        let {position} = config;
+        const size = config.size || 1;
+        const object = new THREE.Object3D();
+        const {overlayDOMNode} = K3D.getWorld();
+        const world = K3D.getWorld();
+        let domElements = [];
+        let i;
 
-        if (config.is_html) {
-            domElement.innerHTML = text;
-            domElement.style.cssText = 'pointer-events: all';
+        if (position.data) {
+            object.positions = position.data;
         } else {
-            domElement.innerHTML = katex.renderToString(text, {displayMode: true});
+            object.positions = position;
         }
 
-        domElement.style.position = 'absolute';
-        domElement.style.color = colorToHex(color);
-        domElement.style.fontSize = size + 'em';
+        object.text = text;
 
-        if (config.label_box) {
-            domElement.style.padding = '5px';
-            domElement.style.background = K3D.getWorld().targetDOMNode.style.backgroundColor;
-            domElement.style.border = '1px solid ' + colorToHex(color);
-            domElement.style.borderRadius = '10px';
+        for (i = 0; i < object.positions.length / 2; i++) {
+            const domElement = document.createElement('div');
+
+            if (config.is_html) {
+                domElement.innerHTML = Array.isArray(text) ? text[i] : text;
+                domElement.style.cssText = 'pointer-events: all';
+            } else {
+                domElement.innerHTML = katex.renderToString(Array.isArray(text) ? text[i] : text, {displayMode: true});
+            }
+
+            if (position.data) {
+                position = position.data;
+            }
+
+            domElement.style.position = 'absolute';
+            domElement.style.color = colorToHex(color);
+            domElement.style.fontSize = `${size}em`;
+
+            if (config.label_box) {
+                domElement.style.padding = '5px';
+                domElement.style.background = K3D.getWorld().targetDOMNode.style.backgroundColor;
+                domElement.style.border = `1px solid ${colorToHex(color)}`;
+                domElement.style.borderRadius = '10px';
+            }
+
+            overlayDOMNode.appendChild(domElement);
+            domElements.push(domElement);
         }
-
-        overlayDOMNode.appendChild(domElement);
-
-        object.position.set(position[0], position[1], position[2]);
-        object.updateMatrixWorld();
 
         function render() {
-            var x, y, coord = {
-                x: object.position.x * world.width,
-                y: object.position.y * world.height
-            };
+            domElements.forEach(function (domElement, index) {
 
-            switch (referencePoint[0]) {
-                case 'l':
-                    x = coord.x + 'px';
-                    break;
-                case 'c':
-                    x = 'calc(' + coord.x + 'px - 50%)';
-                    break;
-                case 'r':
-                    x = 'calc(' + coord.x + 'px - 100%)';
-                    break;
-            }
+                let x;
+                let y;
+                const coord = {
+                    x: object.positions[index * 2] * world.width,
+                    y: object.positions[index * 2 + 1] * world.height,
+                };
 
-            switch (referencePoint[1]) {
-                case 't':
-                    y = coord.y + 'px';
-                    break;
-                case 'c':
-                    y = 'calc(' + coord.y + 'px - 50%)';
-                    break;
-                case 'b':
-                    y = 'calc(' + coord.y + 'px - 100%)';
-                    break;
-            }
+                switch (referencePoint[0]) {
+                    case 'l':
+                        x = `${coord.x}px`;
+                        break;
+                    case 'c':
+                        x = `calc(${coord.x}px - 50%)`;
+                        break;
+                    case 'r':
+                        x = `calc(${coord.x}px - 100%)`;
+                        break;
+                    default:
+                        break;
+                }
 
-            domElement.style.transform = 'translate(' + x + ',' + y + ')';
-            domElement.style.zIndex = 16777271;
+                switch (referencePoint[1]) {
+                    case 't':
+                        y = `${coord.y}px`;
+                        break;
+                    case 'c':
+                        y = `calc(${coord.y}px - 50%)`;
+                        break;
+                    case 'b':
+                        y = `calc(${coord.y}px - 100%)`;
+                        break;
+                    default:
+                        break;
+                }
+
+                domElement.style.transform = `translate(${x},${y})`;
+                domElement.style.zIndex = 16777271;
+            });
         }
 
-        listenersId = K3D.on(K3D.events.RENDERED, render);
-        object.domElement = domElement;
+        const listenersId = K3D.on(K3D.events.BEFORE_RENDER, render);
+        object.domElements = domElements;
 
         object.onRemove = function () {
-            overlayDOMNode.removeChild(domElement);
-            object.domElement = null;
-            K3D.off(K3D.events.RENDERED, listenersId);
+            domElements.forEach(function (domElement) {
+                overlayDOMNode.removeChild(domElement);
+                domElement = null;
+            });
+
+            domElements = [];
+            K3D.off(K3D.events.BEFORE_RENDER, listenersId);
+
+        };
+
+        object.hide = function () {
+            domElements.forEach(function (domElement) {
+                domElement.style.display = 'none';
+            });
+        };
+
+        object.show = function () {
+            domElements.forEach(function (domElement) {
+                domElement.style.display = 'block';
+            });
         };
 
         return Promise.resolve(object);
     },
 
-    update: function (config, changes, obj) {
-        var resolvedChanges = {};
+    update(config, changes, obj) {
+        const resolvedChanges = {};
 
-        if (typeof(changes.text) !== 'undefined' && !changes.text.timeSeries) {
-            if (config.is_html) {
-                obj.domElement.innerHTML = changes.text;
-                obj.domElement.style.pointerEvents = 'all';
-            } else {
-                obj.domElement.innerHTML = katex.renderToString(changes.text, {displayMode: true});
-                obj.domElement.style.pointerEvents = 'none';
-            }
+        if (typeof (changes.text) !== 'undefined' && !changes.text.timeSeries) {
+
+            obj.domElements.forEach(function (domElement, i) {
+                let text = Array.isArray(changes.text) ? changes.text[i] : changes.text;
+
+                if (config.is_html) {
+                    domElement.innerHTML = text;
+                    domElement.style.pointerEvents = 'all';
+                } else {
+                    domElement.innerHTML = katex.renderToString(text, {displayMode: true});
+                    domElement.style.pointerEvents = 'none';
+                }
+            });
 
             resolvedChanges.text = null;
         }
 
-        if (typeof(changes.position) !== 'undefined' && !changes.position.timeSeries) {
-            obj.position.set(changes.position[0], changes.position[1], changes.position[2]);
-            obj.updateMatrixWorld();
+        if (typeof (changes.position) !== 'undefined' && !changes.position.timeSeries) {
+            obj.positions = changes.position.data || changes.position;
 
             resolvedChanges.position = null;
         }
 
         if (areAllChangesResolve(changes, resolvedChanges)) {
-            return Promise.resolve({json: config, obj: obj});
-        } else {
-            return false;
+            return Promise.resolve({json: config, obj});
         }
+        return false;
     }
 
 };
@@ -131,5 +175,5 @@ module.exports = {
 function colorToHex(color) {
     color = parseInt(color, 10) + 0x1000000;
 
-    return '#' + color.toString(16).substr(1);
+    return `#${color.toString(16).substr(1)}`;
 }

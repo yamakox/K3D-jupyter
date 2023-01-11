@@ -1,9 +1,10 @@
 # To release a new version of K3D on PyPI:
 
-Update _version.py (set release version, remove 'dev')
 git add and git commit
-python setup.py sdist upload
-python setup.py bdist_wheel upload
+rm -rf build
+rm -rf dist
+python -m build .
+twine upload dist/*
 cd js
 grunt build
 npm publish

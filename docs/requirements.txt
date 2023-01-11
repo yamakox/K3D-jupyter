@@ -1,10 +1,8 @@
 six
 ipywidgets>=7.0.1
-ipydatawidgets
 traittypes
 traitlets
 numpy
 jupyter_sphinx
-nbsphinx
-nbsphinx_link
-sphinx_rtd_theme
+pydata_sphinx_theme
+sphinx-copybutton

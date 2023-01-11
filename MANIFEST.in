@@ -1,3 +1,0 @@
-recursive-include k3d/static *
-include k3d/k3d_extension.json
-include setupbase.py

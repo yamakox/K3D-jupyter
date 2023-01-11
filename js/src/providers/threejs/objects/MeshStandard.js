@@ -1,12 +1,11 @@
-'use strict';
-
-var THREE = require('three'),
-    intersectHelper = require('./../helpers/Intersection'),
-    handleColorMap = require('./../helpers/Fn').handleColorMap,
-    areAllChangesResolve = require('./../helpers/Fn').areAllChangesResolve,
-    commonUpdate = require('./../helpers/Fn').commonUpdate,
-    getSide = require('./../helpers/Fn').getSide,
-    buffer = require('./../../../core/lib/helpers/buffer');
+const THREE = require('three');
+const interactionsHelper = require('../helpers/Interactions');
+const colorMapHelper = require('../../../core/lib/helpers/colorMap');
+const {handleColorMap} = require('../helpers/Fn');
+const {areAllChangesResolve} = require('../helpers/Fn');
+const {commonUpdate} = require('../helpers/Fn');
+const {getSide} = require('../helpers/Fn');
+const buffer = require('../../../core/lib/helpers/buffer');
 
 /**
  * Loader strategy to handle Mesh object
@@ -16,39 +15,37 @@ var THREE = require('three'),
  * @return {Object} 3D object ready to render
  */
 module.exports = {
-    create: function (config, K3D) {
-        return new Promise(function (resolve) {
+    create(config, K3D) {
+        return new Promise((resolve) => {
             config.color = typeof (config.color) !== 'undefined' ? config.color : 255;
             config.wireframe = typeof (config.wireframe) !== 'undefined' ? config.wireframe : false;
             config.flat_shading = typeof (config.flat_shading) !== 'undefined' ? config.flat_shading : true;
             config.opacity = typeof (config.opacity) !== 'undefined' ? config.opacity : 1.0;
 
-            var modelMatrix = new THREE.Matrix4(),
-                MaterialConstructor = config.wireframe ? THREE.MeshBasicMaterial : THREE.MeshPhongMaterial,
-                material,
-                texture = new THREE.Texture(),
-                textureImage = config.texture,
-                textureFileFormat = config.texture_file_format,
-                colors = (config.colors && config.colors.data) || null,
-                colorRange = config.color_range,
-                colorMap = (config.color_map && config.color_map.data) || null,
-                attribute = (config.attribute && config.attribute.data) || null,
-                triangleAttribute = (config.triangles_attribute && config.triangles_attribute.data) || null,
-                vertices = (config.vertices && config.vertices.data) || null,
-                indices = (config.indices && config.indices.data) || null,
-                uvs = (config.uvs && config.uvs.data) || null,
-                geometry = new THREE.BufferGeometry(),
-                ObjectConstructor = THREE.Mesh,
-                image,
-                object,
-                preparedtriangleAttribute, i;
+            const modelMatrix = new THREE.Matrix4();
+            const MaterialConstructor = config.wireframe ? THREE.MeshBasicMaterial : THREE.MeshPhongMaterial;
+            const texture = new THREE.Texture();
+            const textureImage = config.texture;
+            const textureFileFormat = config.texture_file_format;
+            const colors = (config.colors && config.colors.data) || null;
+            const colorRange = config.color_range;
+            const colorMap = (config.color_map && config.color_map.data) || null;
+            const attribute = (config.attribute && config.attribute.data) || null;
+            const triangleAttribute = (config.triangles_attribute && config.triangles_attribute.data) || null;
+            const vertices = (config.vertices && config.vertices.data) || null;
+            const indices = (config.indices && config.indices.data) || null;
+            const uvs = (config.uvs && config.uvs.data) || null;
+            let geometry = new THREE.BufferGeometry();
+            let image;
+            let object;
+            let preparedtriangleAttribute;
 
             modelMatrix.set.apply(modelMatrix, config.model_matrix.data);
 
             geometry.setAttribute('position', new THREE.BufferAttribute(vertices, 3));
             geometry.setIndex(new THREE.BufferAttribute(indices, 1));
 
-            material = new MaterialConstructor({
+            const material = new MaterialConstructor({
                 color: config.color,
                 emissive: 0,
                 shininess: 50,
@@ -58,7 +55,7 @@ module.exports = {
                 wireframe: config.wireframe,
                 opacity: config.opacity,
                 depthWrite: config.opacity === 1.0,
-                transparent: config.opacity !== 1.0
+                transparent: config.opacity !== 1.0,
             });
 
             function finish() {
@@ -69,9 +66,9 @@ module.exports = {
                 geometry.computeBoundingSphere();
                 geometry.computeBoundingBox();
 
-                object = new ObjectConstructor(geometry, material);
+                object = new THREE.Mesh(geometry, material);
 
-                intersectHelper.init(config, object, K3D);
+                interactionsHelper.init(config, object, K3D);
 
                 object.applyMatrix4(modelMatrix);
                 object.updateMatrixWorld();
@@ -82,25 +79,25 @@ module.exports = {
             if (colors !== null && colors.length > 0) {
                 material.setValues({
                     color: 0xffffff,
-                    vertexColors: THREE.VertexColors
+                    vertexColors: THREE.VertexColors,
                 });
 
                 geometry.setAttribute('color', new THREE.BufferAttribute(buffer.colorsToFloat32Array(colors), 3));
                 finish();
             } else if (
-                attribute && colorRange && colorMap && attribute.length > 0 &&
-                colorRange.length > 0 && colorMap.length > 0
+                attribute && colorRange && colorMap && attribute.length > 0
+                && colorRange.length > 0 && colorMap.length > 0
             ) {
                 handleColorMap(geometry, colorMap, colorRange, attribute, material);
                 finish();
             } else if (
-                triangleAttribute && colorRange && colorMap && triangleAttribute.length > 0 &&
-                colorRange.length > 0 && colorMap.length > 0
+                triangleAttribute && colorRange && colorMap && triangleAttribute.length > 0
+                && colorRange.length > 0 && colorMap.length > 0
             ) {
                 geometry = geometry.toNonIndexed();
                 preparedtriangleAttribute = new Float32Array(triangleAttribute.length * 3);
 
-                for (i = 0; i < preparedtriangleAttribute.length; i++) {
+                for (let i = 0; i < preparedtriangleAttribute.length; i++) {
                     preparedtriangleAttribute[i] = triangleAttribute[Math.floor(i / 3)];
                 }
 
@@ -108,8 +105,8 @@ module.exports = {
                 finish();
             } else if (textureImage && textureFileFormat && uvs) {
                 image = document.createElement('img');
-                image.src = 'data:image/' + textureFileFormat + ';base64,' +
-                    buffer.bufferToBase64(textureImage.buffer);
+                image.src = `data:image/${textureFileFormat};base64,${
+                    buffer.bufferToBase64(textureImage.data.buffer)}`;
 
                 geometry.setAttribute('uv', new THREE.BufferAttribute(new Float32Array(uvs), 2));
 
@@ -128,24 +125,30 @@ module.exports = {
         });
     },
 
-    update: function (config, changes, obj, K3D) {
-        var resolvedChanges = {}, data, i;
+    update(config, changes, obj, K3D) {
+        const resolvedChanges = {};
+        let data;
+        let i;
 
-        if (typeof (obj.geometry.attributes.uv) !== 'undefined') {
+        if (!obj) {
+            return false;
+        }
+
+        if (obj.geometry && typeof (obj.geometry.attributes.uv) !== 'undefined') {
             if (typeof (changes.color_range) !== 'undefined' && !changes.color_range.timeSeries) {
                 data = obj.geometry.attributes.uv.array;
 
                 if (config.attribute.data.length > 0) {
                     for (i = 0; i < data.length; i++) {
-                        data[i] = (config.attribute.data[i] - config.color_range[0]) /
-                            (config.color_range[1] - config.color_range[0]);
+                        data[i] = (config.attribute.data[i] - config.color_range[0])
+                            / (config.color_range[1] - config.color_range[0]);
                     }
                 }
 
                 if (config.triangles_attribute.data.length > 0) {
                     for (i = 0; i < data.length; i++) {
-                        data[i] = (config.triangles_attribute.data[Math.floor(i / 3)] - config.color_range[0]) /
-                            (config.color_range[1] - config.color_range[0]);
+                        data[i] = (config.triangles_attribute.data[Math.floor(i / 3)] - config.color_range[0])
+                            / (config.color_range[1] - config.color_range[0]);
                     }
                 }
 
@@ -153,36 +156,39 @@ module.exports = {
                 resolvedChanges.color_range = null;
             }
 
-            if (typeof (changes.attribute) !== 'undefined' && !changes.attribute.timeSeries) {
+            if (obj.geometry && typeof (changes.attribute) !== 'undefined' && !changes.attribute.timeSeries) {
                 data = obj.geometry.attributes.uv.array;
 
                 for (i = 0; i < data.length; i++) {
-                    data[i] = (changes.attribute.data[i] - config.color_range[0]) /
-                        (config.color_range[1] - config.color_range[0]);
+                    data[i] = (changes.attribute.data[i] - config.color_range[0])
+                        / (config.color_range[1] - config.color_range[0]);
                 }
 
                 obj.geometry.attributes.uv.needsUpdate = true;
                 resolvedChanges.attribute = null;
             }
+
+            if (typeof (changes.color_map) !== 'undefined' && !changes.color_map.timeSeries) {
+                const canvas = colorMapHelper.createCanvasGradient(
+                    (changes.color_map && changes.color_map.data) || config.color_map.data,
+                    1024,
+                );
+
+                obj.material.map.image = canvas;
+                obj.material.map.needsUpdate = true;
+                obj.material.needsUpdate = true;
+
+                resolvedChanges.color_map = null;
+            }
         }
 
-        if (typeof (changes.opacity) !== 'undefined' && !changes.opacity.timeSeries) {
-            obj.material.opacity = changes.opacity;
-            obj.material.depthWrite = changes.opacity === 1.0;
-            obj.material.transparent = changes.opacity !== 1.0;
-            obj.material.needsUpdate = true;
+        interactionsHelper.update(config, changes, resolvedChanges, obj);
 
-            resolvedChanges.opacity = null;
-        }
-
-        intersectHelper.update(config, changes, resolvedChanges, obj, K3D);
-
-        commonUpdate(config, changes, resolvedChanges, obj);
+        commonUpdate(config, changes, resolvedChanges, obj, K3D);
 
         if (areAllChangesResolve(changes, resolvedChanges)) {
-            return Promise.resolve({json: config, obj: obj});
-        } else {
-            return false;
+            return Promise.resolve({json: config, obj});
         }
-    }
+        return false;
+    },
 };

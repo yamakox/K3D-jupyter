@@ -7,20 +7,18 @@ if (window.require) {
     window.require.config({
         map: {
             '*': {
-                'k3d': 'nbextensions/k3d/index',
-                'jupyter-widgets-controls': 'nbextensions/jupyter-widgets-controls/extension'
-            }
-        }
+                k3d: 'nbextensions/k3d/index',
+                'jupyter-widgets-controls': 'nbextensions/jupyter-widgets-controls/extension',
+            },
+        },
     });
 }
 
-window.__webpack_public_path__ = document.querySelector('body').getAttribute('data-base-url') + 'nbextensions/k3d/';
+require('katex/dist/katex.min.css');
+require('lil-gui/dist/lil-gui.css');
 
-require('style-loader?{attributes:{id: "k3d-katex"}}!css-loader!../node_modules/katex/dist/katex.min.css');
-require('style-loader?{attributes:{id: "k3d-dat.gui"}}!css-loader!../node_modules/dat.gui/build/dat.gui.css');
-
-// Export the required load_ipython_extention
+// Export the required load_ipython_extension
 module.exports = {
-    load_ipython_extension: function () {
-    }
+    load_ipython_extension() {
+    },
 };

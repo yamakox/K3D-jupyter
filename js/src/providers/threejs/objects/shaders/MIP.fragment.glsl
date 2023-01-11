@@ -15,6 +15,9 @@ uniform mat4 modelViewMatrix;
 uniform float samples;
 uniform float gradient_step;
 
+uniform sampler3D mask;
+uniform float maskOpacities[256];
+
 uniform vec4 scale;
 uniform vec4 translation;
 
@@ -32,8 +35,8 @@ struct Ray {
 };
 
 vec3 aabb[2] = vec3[2](
-	vec3(-0.5, -0.5, -0.5),
-	vec3(0.5, 0.5, 0.5)
+    vec3(-0.5, -0.5, -0.5),
+    vec3(0.5, 0.5, 0.5)
 );
 
 Ray makeRay(vec3 origin, vec3 direction) {
@@ -44,10 +47,10 @@ Ray makeRay(vec3 origin, vec3 direction) {
         direction,
         inv_direction,
         int[3](
-			((inv_direction.x < 0.0) ? 1 : 0),
-			((inv_direction.y < 0.0) ? 1 : 0),
-			((inv_direction.z < 0.0) ? 1 : 0)
-		)
+            ((inv_direction.x < 0.0) ? 1 : 0),
+            ((inv_direction.y < 0.0) ? 1 : 0),
+            ((inv_direction.z < 0.0) ? 1 : 0)
+        )
     );
 }
 
@@ -55,34 +58,50 @@ Ray makeRay(vec3 origin, vec3 direction) {
 	From: https://github.com/hpicgs/cgsee/wiki/Ray-Box-Intersection-on-the-GPU
 */
 void intersect(
-    in Ray ray, in vec3 aabb[2],
-    out float tmin, out float tmax
-){
+in Ray ray, in vec3 aabb[2],
+out float tmin, out float tmax
+) {
     float tymin, tymax, tzmin, tzmax;
     tmin = (aabb[ray.sign[0]].x - ray.origin.x) * ray.inv_direction.x;
-    tmax = (aabb[1-ray.sign[0]].x - ray.origin.x) * ray.inv_direction.x;
+    tmax = (aabb[1 - ray.sign[0]].x - ray.origin.x) * ray.inv_direction.x;
     tymin = (aabb[ray.sign[1]].y - ray.origin.y) * ray.inv_direction.y;
-    tymax = (aabb[1-ray.sign[1]].y - ray.origin.y) * ray.inv_direction.y;
+    tymax = (aabb[1 - ray.sign[1]].y - ray.origin.y) * ray.inv_direction.y;
     tzmin = (aabb[ray.sign[2]].z - ray.origin.z) * ray.inv_direction.z;
-    tzmax = (aabb[1-ray.sign[2]].z - ray.origin.z) * ray.inv_direction.z;
+    tzmax = (aabb[1 - ray.sign[2]].z - ray.origin.z) * ray.inv_direction.z;
     tmin = max(max(tmin, tymin), tzmin);
     tmax = min(min(tmax, tymax), tzmax);
+}
+
+float getMaskOpacity(vec3 pos) {
+    int maskValue = int(texture(mask, pos).r * 255.0);
+
+    return maskOpacities[maskValue];
+}
+
+float getMaskedVolume(vec3 pos)
+{
+    #if (USE_MASK == 1)
+    return texture(volumeTexture, pos).x * getMaskOpacity(pos);
+    #else
+    return texture(volumeTexture, pos).x;
+    #endif
 }
 
 vec3 worldGetNormal(in float px, in vec3 pos)
 {
     return normalize(
-        vec3(px -  texture(volumeTexture, pos + vec3(gradient_step, 0, 0)).x,
-             px -  texture(volumeTexture, pos + vec3(0, gradient_step, 0)).x,
-             px -  texture(volumeTexture, pos + vec3(0, 0, gradient_step)).x
-         )
+        vec3(
+            px - getMaskedVolume(pos + vec3(gradient_step, 0, 0)),
+            px - getMaskedVolume(pos + vec3(0, gradient_step, 0)),
+            px - getMaskedVolume(pos + vec3(0, 0, gradient_step))
+        )
     );
 }
 
 void main() {
-    float jitter = texture2D(jitterTexture, gl_FragCoord.xy/64.0).r;
-	float tmin = 0.0;
-	float tmax = 0.0;
+    float jitter = texture2D(jitterTexture, gl_FragCoord.xy / 64.0).r;
+    float tmin = 0.0;
+    float tmax = 0.0;
     float px = -3.402823466e+38F;
     vec4 pxColor = vec4(0.0, 0.0, 0.0, 0.0);
 
@@ -108,24 +127,28 @@ void main() {
 
     float step = length(textcoord_delta);
 
-    for(int count = 0; count < sampleCount; count++) {
+    for (int count = 0; count < sampleCount; count++) {
         textcoord += textcoord_delta;
 
         #if NUM_CLIPPING_PLANES > 0
-            vec4 plane;
-            vec3 pos = -vec3(modelViewMatrix * vec4(textcoord - vec3(0.5), 1.0));
+        vec4 plane;
+        vec3 pos = -vec3(modelViewMatrix * vec4(textcoord - vec3(0.5), 1.0));
 
-            #pragma unroll_loop_start
-            for ( int i = 0; i < UNION_CLIPPING_PLANES; i ++ ) {
-                plane = clippingPlanes[ i ];
-                if ( dot( pos, plane.xyz ) > plane.w ) continue;
-            }
-            #pragma unroll_loop_end
+        #pragma unroll_loop_start
+        for (int i = 0; i < UNION_CLIPPING_PLANES; i++) {
+            plane = clippingPlanes[i];
+            if (dot(pos, plane.xyz) > plane.w) continue;
+        }
+        #pragma unroll_loop_end
         #endif
 
+        #if (USE_MASK == 1)
+        float newPx = texture(volumeTexture, textcoord).x * getMaskOpacity(textcoord);
+        #else
         float newPx = texture(volumeTexture, textcoord).x;
+        #endif
 
-        if(newPx > px) {
+        if (newPx > px) {
             px = newPx;
             maxTextcoord = textcoord;
         }
@@ -137,7 +160,7 @@ void main() {
 
     float scaled_px = (px - low) * inv_range;
 
-    if(scaled_px > 0.0) {
+    if (scaled_px > 0.0) {
         scaled_px = min(scaled_px, 0.99);
 
         pxColor = texture(colormap, vec2(scaled_px, 0.5));
@@ -145,25 +168,25 @@ void main() {
 
     // LIGHT
     #if NUM_DIR_LIGHTS > 0
-        vec4 addedLights = vec4(ambientLightColor, 1.0);
-        vec3 normal = worldGetNormal(px, maxTextcoord);
+    vec4 addedLights = vec4(ambientLightColor / PI, 1.0);
+    vec3 normal = worldGetNormal(px, maxTextcoord);
 
-        vec3 lightDirection;
-        float lightingIntensity;
+    vec3 lightDirection;
+    float lightingIntensity;
 
-        #pragma unroll_loop_start
-        for ( int i = 0; i < NUM_DIR_LIGHTS; i ++ ) {
-            lightDirection = -directionalLights[ i ].direction;
-            lightingIntensity = clamp(dot(-lightDirection, normal), 0.0, 1.0);
-            addedLights.rgb += directionalLights[ i ].color * (0.05 + 0.95 * lightingIntensity);
+    #pragma unroll_loop_start
+    for (int i = 0; i < NUM_DIR_LIGHTS; i++) {
+        lightDirection = -directionalLights[i].direction;
+        lightingIntensity = clamp(dot(-lightDirection, normal), 0.0, 1.0);
+        addedLights.rgb += directionalLights[i].color / PI * (0.05 + 0.95 * lightingIntensity);
 
-            #if (USE_SPECULAR == 1)
-            pxColor.rgb += directionalLights[ i ].color * pow(lightingIntensity, 50.0) * pxColor.a;
-            #endif
-        }
-        #pragma unroll_loop_end
+        #if (USE_SPECULAR == 1)
+        pxColor.rgb += directionalLights[i].color / PI * pow(lightingIntensity, 50.0) * pxColor.a;
+        #endif
+    }
+    #pragma unroll_loop_end
 
-        pxColor.rgb *= addedLights.xyz;
+    pxColor.rgb *= addedLights.xyz;
     #endif
 
     gl_FragColor = pxColor;
