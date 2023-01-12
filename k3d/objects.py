@@ -1460,7 +1460,7 @@ class MultiMIP(Drawable):
         sync=True, **array_serialization_wrap('opacity_function_list')
     )
     color_range_list = TimeSeries(List(ListOrArray(minlen=2, maxlen=2, empty_ok=True), minlen=1, maxlen=4)).tag(
-        sync=True, **array_serialization_wrap('opacity_function_list')
+        sync=True, **array_serialization_wrap('color_range_list')
     )
     gradient_step = TimeSeries(Float()).tag(sync=True)
     alpha_blending = TimeSeries(Bool()).tag(sync=True)
