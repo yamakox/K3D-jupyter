@@ -1809,7 +1809,7 @@ def multi_mip(
         volume_list,
         color_map_list=None,
         opacity_function_list=None,
-        color_range_list=[[], [], [], []],
+        color_range_list=[],
         samples=512.0,
         gradient_step=0.005,
         alpha_blending=False,
@@ -1879,7 +1879,7 @@ def multi_mip(
         check_attribute_color_range(volume, color_range)
         if type(color_range) is not dict
         else color_range
-        for volume, color_range in zip(volume_list, color_range_list)
+        for volume, color_range in zip(volume_list, color_range_list + [[]] * 4)
     ]
     print(f'{color_range_list=}')
 

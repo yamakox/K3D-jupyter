@@ -87,7 +87,7 @@ module.exports = {
         jitterTexture.needsUpdate = true;
 
         for (let i = 0; i < number; i++) {
-            const canvas = colorMapHelper.createCanvasGradient(colorMapList[i], 1024, opacityFunctionList[i]);
+            const canvas = colorMapHelper.createCanvasGradient(colorMapList[i].data, 1024, opacityFunctionList[i].data);
             const colormap_ = new THREE.CanvasTexture(
                 canvas,
                 THREE.UVMapping,
@@ -123,30 +123,26 @@ module.exports = {
         const uniforms = {
             number: { value: number },
             maskOpacities: { value: ensure256size(config.mask_opacities.data) },
-            // low: {value: colorRangeList[0]},
-            // high: {value: colorRangeList[1]},
             gradient_step: { value: config.gradient_step },
             samples: { value: samples },
             alpha_blending: { value: alphaBlending },
             translation: { value: translation },
             rotation: { value: rotation },
             scale: { value: scale },
-            // volumeTexture: {type: 't', value: texture},
             mask: { type: 't', value: mask },
-            // colormap: {type: 't', value: colormap},
             jitterTexture: { type: 't', value: jitterTexture },
         };
         for (let i = 0; i < number; i++) {
-            uniforms["low" + i] = { value: colorRangeList[i][0] };
-            uniforms['high' + i] = { value: colorRangeList[i][1] };
-            uniforms['volumeTexture' + i] = { type: 't', value: texture[i] };
-            uniforms['colormap' + i] = { type: 't', value: colormap[i] };
+            uniforms[`low${i}`] = { value: colorRangeList[i][0] };
+            uniforms[`high${i}`] = { value: colorRangeList[i][1] };
+            uniforms[`volumeTexture${i}`] = { type: 't', value: texture[i] };
+            uniforms[`colormap${i}`] = { type: 't', value: colormap[i] };
         }
         for (let i = number; i < 4; i++) {
-            uniforms['low' + i] = { value: 0.0 };
-            uniforms['high' + i] = { value: 1.0 };
-            uniforms['volumeTexture' + i] = { type: 't', value: new THREE.Data3DTexture(null, 0, 0, 0) };
-            uniforms['colormap' + i] = { type: 't', value: new THREE.CanvasTexture(null) };
+            uniforms[`low${i}`] = { value: 0.0 };
+            uniforms[`high${i}`] = { value: 1.0 };
+            uniforms[`volumeTexture${i}`] = { type: 't', value: new THREE.Data3DTexture(null, 0, 0, 0) };
+            uniforms[`colormap${i}`] = { type: 't', value: new THREE.CanvasTexture(null) };
         }
 
         const material = new THREE.ShaderMaterial({
@@ -177,10 +173,10 @@ module.exports = {
 
         object.onRemove = function () {
             for (let i = 0; i < 4; i++) {
-                object.material.uniforms['volumeTexture' + i].value.dispose();
-                object.material.uniforms['volumeTexture' + i].value = undefined;
-                object.material.uniforms['colormap' + i].value.dispose();
-                object.material.uniforms['colormap' + i].value = undefined;
+                object.material.uniforms[`volumeTexture${i}`].value.dispose();
+                object.material.uniforms[`volumeTexture${i}`].value = undefined;
+                object.material.uniforms[`colormap${i}`].value.dispose();
+                object.material.uniforms[`colormap${i}`].value = undefined;
             }
             jitterTexture.dispose();
             jitterTexture = undefined;
