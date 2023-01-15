@@ -5,7 +5,6 @@
 precision highp sampler3D;
 
 uniform mat4 transform;
-uniform int number;
 uniform bool alpha_blending;
 
 uniform sampler3D volumeTexture0;
@@ -195,29 +194,20 @@ void main() {
 
     vec4 pxColor;
 
-    switch(number) {
-        case 1:
-            pxColor = sampleFrom(volumeTexture0, colormap0, low0, high0);
-            break;
-        case 2:
-            pxColor = sampleFrom(volumeTexture0, colormap0, low0, high0);
+    #if CHANNEL_NUMBER >= 1
+        pxColor = sampleFrom(volumeTexture0, colormap0, low0, high0);
+        #if CHANNEL_NUMBER >= 2
             pxColor = composite(pxColor, sampleFrom(volumeTexture1, colormap1, low1, high1));
-            break;
-        case 3:
-            pxColor = sampleFrom(volumeTexture0, colormap0, low0, high0);
-            pxColor = composite(pxColor, sampleFrom(volumeTexture1, colormap1, low1, high1));
-            pxColor = composite(pxColor, sampleFrom(volumeTexture2, colormap2, low2, high2));
-            break;
-        case 4:
-            pxColor = sampleFrom(volumeTexture0, colormap0, low0, high0);
-            pxColor = composite(pxColor, sampleFrom(volumeTexture1, colormap1, low1, high1));
-            pxColor = composite(pxColor, sampleFrom(volumeTexture2, colormap2, low2, high2));
-            pxColor = composite(pxColor, sampleFrom(volumeTexture3, colormap3, low3, high3));
-            break;
-        default:
-            pxColor = vec4(0.0, 0.0, 0.0, 0.0);
-            break;
-    }
+            #if CHANNEL_NUMBER >= 3
+                pxColor = composite(pxColor, sampleFrom(volumeTexture2, colormap2, low2, high2));
+                #if CHANNEL_NUMBER >= 4
+                    pxColor = composite(pxColor, sampleFrom(volumeTexture3, colormap3, low3, high3));
+                #endif
+            #endif
+        #endif
+    #else
+        pxColor = vec4(0.0, 0.0, 0.0, 0.0);
+    #endif
 
     if (!alpha_blending) {
         pxColor.rgb *= pxColor.a;

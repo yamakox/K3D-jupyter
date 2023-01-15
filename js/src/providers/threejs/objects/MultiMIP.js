@@ -121,7 +121,6 @@ module.exports = {
         }
 
         const uniforms = {
-            number: { value: number },
             maskOpacities: { value: ensure256size(config.mask_opacities.data) },
             gradient_step: { value: config.gradient_step },
             samples: { value: samples },
@@ -153,6 +152,7 @@ module.exports = {
             defines: {
                 USE_SPECULAR: 0,
                 USE_MASK: (maskEnabled ? 1 : 0),
+                CHANNEL_NUMBER: number,
             },
             vertexShader: require('./shaders/MultiMIP.vertex.glsl'),
             fragmentShader: require('./shaders/MultiMIP.fragment.glsl'),
