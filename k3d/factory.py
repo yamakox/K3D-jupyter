@@ -1881,7 +1881,6 @@ def multi_mip(
         else color_range
         for volume, color_range in zip(volume_list, color_range_list + [[]] * 4)
     ]
-    print(f'{color_range_list=}')
 
     if opacity_function_list is None:
         opacity_function_list = []
